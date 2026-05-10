@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>住宅改修 受注進捗管理</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+body { margin:0; padding:0; font-family:'Noto Sans JP',sans-serif; font-size:12px; background:#f0f2f5; color:#111; }
+
+/* ===== トップバー ===== */
+#topbar {
+  background:#1e3a5f; padding:8px 12px;
+  display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  position:sticky; top:0; z-index:200;
+  box-shadow:0 2px 6px rgba(0,0,0,0.3);
+}
+#topbar h1 { color:#fff; font-size:15px; font-weight:700; margin:0 6px 0 0; }
+.btn {
+  padding:7px 13px; border:none; border-radius:5px; cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif; font-size:12px; font-weight:700; white-space:nowrap;
+}
+.btn-add   { background:#2563eb; color:#fff; }
+.btn-save  { background:#16a34a; color:#fff; }
+.btn-summ  { background:#7c3aed; color:#fff; }
+.btn-csv   { background:#0891b2; color:#fff; }
+.btn-drive { background:#059669; color:#fff; }
+.btn-clr   { background:#dc2626; color:#fff; }
+.btn:disabled { opacity:0.5; }
+
+/* ===== GASバナー ===== */
+#gasBanner {
+  background:#fffbeb; border-bottom:2px solid #f59e0b;
+  padding:7px 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:11px;
+}
+#gasBanner label { font-weight:700; color:#92400e; white-space:nowrap; }
+#gasInput { flex:1; min-width:180px; padding:5px 8px; border:1px solid #f59e0b; border-radius:4px; font-size:11px; height:30px; }
+#gasSaveBtn { padding:5px 12px; background:#d97706; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-size:11px; height:30px; }
+#gasMsg { font-size:10px; font-weight:700; }
+
+/* ===== フィルター ===== */
+#filterBar {
+  background:#fff; border-bottom:1px solid #d1d5db;
+  padding:7px 12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+#filterBar label { font-size:11px; font-weight:600; color:#374151; display:flex; align-items:center; gap:4px; }
+#filterBar select, #filterBar input[type="text"] {
+  height:28px; padding:0 8px; border:1px solid #d1d5db; border-radius:4px;
+  font-size:11px; background:#f9fafb; color:#111;
+}
+#fcnt { margin-left:auto; font-size:10px; color:#9ca3af; }
+
+/* ===== 凡例 ===== */
+#legend {
+  background:#fff; border-bottom:1px solid #d1d5db;
+  padding:5px 12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:10px;
+}
+#legend b { font-size:11px; color:#1e3a5f; }
+.lbox { display:inline-block; width:16px; height:12px; border-radius:2px; border:1px solid rgba(0,0,0,0.2); vertical-align:middle; margin-right:3px; }
+.hbox { display:inline-block; width:20px; height:12px; border-radius:2px; border:1px solid #999;
+  background-image:repeating-linear-gradient(45deg,#999 0,#999 1px,#eee 1px,#eee 5px);
+  vertical-align:middle; margin-right:3px; }
+
+/* ===== テーブルラッパー ===== */
+#tWrap { overflow-x:auto; -webkit-overflow-scrolling:touch; background:#fff; }
+
+table { border-collapse:collapse; background:#fff; }
+
+thead tr.grp th {
+  background:#2d5a8e; color:#fff; font-size:11px; font-weight:700;
+  padding:8px 6px; text-align:center; border:1px solid #1a4070; white-space:nowrap;
+}
+thead tr.shdr th {
+  background:#dde5f0; color:#1e3a5f; font-size:10px; font-weight:700;
+  padding:7px 5px; text-align:center; border:1px solid #b8c4d8;
+  white-space:nowrap; line-height:1.4;
+  position:sticky; top:52px; z-index:100;
+}
+
+tbody tr { background:#fff; }
+tbody tr:nth-child(even) { background:#f9fafb; }
+tbody tr.canceled td { background:#fff0f0 !important; color:#bbb !important; text-decoration:line-through; }
+
+/* ===== セル本体 ===== */
+td {
+  border:1px solid #d1d5db;
+  text-align:center;
+  vertical-align:middle;
+  color:#111;
+  font-size:11px;
+  white-space:nowrap;
+  /* 高さはpaddingで自然に決まる */
+  padding:10px 6px;
+  line-height:1.4;
+}
+tbody tr:hover td { background:#eff6ff !important; }
+
+/* ===== 編集可能セル（contenteditable） ===== */
+td[contenteditable="true"] {
+  cursor:text;
+  outline:none;
+  min-width:80px;
+  padding:10px 6px;
+}
+td[contenteditable="true"]:focus {
+  background:#eff6ff !important;
+  outline:2px solid #2563eb;
+  outline-offset:-2px;
+}
+td[contenteditable="true"]:empty:before {
+  content: attr(data-placeholder);
+  color:#ccc;
+  font-size:10px;
+}
+
+/* 数値セル */
+td.num-edit {
+  min-width:76px;
+  text-align:right;
+  padding-right:8px;
+}
+
+/* 日付セル：input[type=date]はそのまま使うが幅・高さをtdに合わせる */
+td.date-td {
+  padding:0;
+  min-width:100px;
+}
+td.date-td input[type="date"] {
+  width:100%;
+  border:none;
+  outline:none;
+  background:transparent;
+  font-family:'Noto Sans JP',sans-serif;
+  font-size:10px;
+  color:#111;
+  text-align:center;
+  cursor:pointer;
+  /* Safariでの表示を保証するためpaddingで高さを作る */
+  padding:11px 2px;
+  display:block;
+  box-sizing:border-box;
+}
+td.date-td input[type="date"]::-webkit-calendar-picker-indicator { opacity:0.5; }
+td.date-td input[type="date"]:focus { background:#eff6ff; }
+
+/* チェックボックスセル */
+td.chk-td {
+  padding:8px 4px;
+  min-width:40px;
+}
+td.chk-td input[type="checkbox"] {
+  width:16px; height:16px;
+  cursor:pointer;
+  accent-color:#2563eb;
+  display:block;
+  margin:0 auto;
+}
+
+/* 削除ボタンセル */
+td.del-td { padding:6px 4px; min-width:44px; }
+.dbtn {
+  background:none; border:1px solid #e5e7eb; border-radius:4px;
+  cursor:pointer; color:#9ca3af; font-size:15px; padding:5px 7px; line-height:1;
+}
+.dbtn:hover { color:#dc2626; background:#fee2e2; border-color:#fca5a5; }
+
+/* 外注金額 */
+td.ext-td { color:#7c3aed; font-weight:700; min-width:80px; }
+
+/* ステータスバッジ */
+.badge {
+  display:inline-block; padding:3px 9px; border-radius:12px;
+  font-size:10px; font-weight:700; white-space:nowrap;
+}
+.b-grey { background:#f3f4f6; color:#6b7280; }
+.b-blue { background:#dbeafe; color:#1d4ed8; }
+.b-ind  { background:#e0e7ff; color:#4338ca; }
+.b-yel  { background:#fef9c3; color:#92400e; }
+.b-grn  { background:#dcfce7; color:#15803d; }
+.b-ora  { background:#fed7aa; color:#c2410c; }
+.b-teal { background:#a7f3d0; color:#065f46; }
+.b-red  { background:#fee2e2; color:#dc2626; }
+
+/* 進捗色 */
+td.c-est { background:#dbeafe !important; }
+td.c-exp { background:#e0e7ff !important; }
+td.c-sub { background:#fef9c3 !important; }
+td.c-prm { background:#dcfce7 !important; }
+td.c-sta { background:#fed7aa !important; }
+td.c-fin { background:#bbf7d0 !important; }
+td.c-col { background:#e9d5ff !important; }
+td.c-cmp { background:#a7f3d0 !important; }
+
+/* 網掛け */
+td.hatch {
+  background-color:#e8e8e8 !important;
+  background-image:repeating-linear-gradient(45deg,#aaa 0,#aaa 1px,transparent 1px,transparent 6px) !important;
+}
+
+/* トースト */
+#toast {
+  position:fixed; bottom:20px; right:20px; z-index:9999;
+  background:#16a34a; color:#fff;
+  padding:11px 20px; border-radius:8px; font-weight:700; font-size:13px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.2); opacity:0;
+  transition:opacity 0.3s; pointer-events:none; max-width:340px;
+}
+#toast.show { opacity:1; }
+#toast.err  { background:#dc2626; }
+
+/* モーダル */
+#mOverlay { display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
+#mOverlay.open { display:flex; }
+#mBox { background:#fff; border-radius:10px; width:min(96vw,1080px); max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.25); }
+#mHead { background:#1e3a5f; color:#fff; padding:13px 18px; display:flex; align-items:center; gap:10px; }
+#mHead h2 { font-size:15px; font-weight:700; margin:0; }
+#mHead small { font-size:10px; opacity:0.75; }
+#mClose { margin-left:auto; background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:5px; padding:5px 14px; cursor:pointer; font-size:13px; font-weight:700; }
+#mClose:hover { background:rgba(255,255,255,0.35); }
+#mBody { overflow-y:auto; padding:18px; flex:1; -webkit-overflow-scrolling:touch; }
+
+.sum-cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px; }
+.sum-card { border-radius:8px; padding:12px 18px; text-align:center; min-width:118px; border:1px solid; }
+.sum-card .lbl { font-size:10px; font-weight:600; margin-bottom:4px; }
+.sum-card .val { font-size:21px; font-weight:700; }
+.sc-b { background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
+.sc-g { background:#f0fdf4; border-color:#bbf7d0; color:#15803d; }
+.sc-p { background:#faf5ff; border-color:#e9d5ff; color:#7c3aed; }
+
+.ss { margin-bottom:22px; }
+.st { font-size:13px; font-weight:700; color:#1e3a5f; border-left:4px solid #2d5a8e; padding-left:9px; margin-bottom:8px; }
+.sn { font-size:10px; color:#6b7280; margin-bottom:7px; }
+.stbl { border-collapse:collapse; width:100%; }
+.stbl th { background:#dde5f0; color:#1e3a5f; font-size:11px; font-weight:700; padding:7px 10px; border:1px solid #b8c4d8; text-align:center; white-space:nowrap; }
+.stbl th.hc { background:#1e3a5f; color:#fff; }
+.stbl th.hp { background:#6b7280; color:#fff; }
+.stbl td { font-size:11px; padding:7px 10px; border:1px solid #e0e4ea; text-align:right; background:#fff; white-space:nowrap; }
+.stbl td:first-child { text-align:left; font-weight:600; background:#fafafa; }
+.stbl tr:hover td { background:#eff6ff; }
+.stbl tr.trow td { background:#e8edf5 !important; font-weight:700; }
+.yb  { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.ybc { background:#1e3a5f; color:#fff; }
+.ybp { background:#9ca3af; color:#fff; }
+.up  { color:#16a34a !important; font-weight:700; }
+.dn  { color:#dc2626 !important; font-weight:700; }
+.ev  { color:#9ca3af; }
+
+.chart-wrap { display:flex; gap:18px; flex-wrap:wrap; padding:6px 0; }
+.chart-col  { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.chart-bars { display:flex; gap:3px; align-items:flex-end; height:80px; }
+.cbar { width:22px; border-radius:3px 3px 0 0; min-height:2px; }
+.cbar.cur  { background:#2563eb; }
+.cbar.prev { background:#d1d5db; border:1px solid #9ca3af; }
+.chart-val  { font-size:10px; font-weight:700; color:#374151; }
+.chart-lbl  { font-size:9px; color:#9ca3af; max-width:64px; text-align:center; white-space:normal; line-height:1.3; }
+.legend-row { display:flex; gap:12px; font-size:10px; color:#6b7280; margin-bottom:8px; align-items:center; }
+.legend-box { width:14px; height:10px; border-radius:2px; display:inline-block; vertical-align:middle; }
+</style>
+  <!-- PWA設定 -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="住宅改修管理">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <meta name="theme-color" content="#1e3a5f">
+  <!-- Service Worker登録 -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').then(function(reg) {
+          console.log('SW registered');
+        }).catch(function(err) {
+          console.log('SW error:', err);
+        });
+      });
+    }
+  </script>
+</head>
+<body>
+
+<!-- トップバー -->
+<div id="topbar">
+  <h1>住宅改修 受注進捗管理</h1>
+  <button class="btn btn-add"   onclick="addRow()">＋ 新規登録</button>
+  <button class="btn btn-save"  onclick="saveLocal()">💾 保存</button>
+  <button class="btn btn-summ"  onclick="openModal()">📊 集計表</button>
+  <button class="btn btn-csv"   onclick="doCSV()">CSV出力</button>
+  <button class="btn btn-drive" onclick="backupDrive()" id="driveBtn">☁️ Driveへ保存</button>
+  <button class="btn btn-clr"   onclick="clearAll()">全消去</button>
+</div>
+
+<!-- GASバナー -->
+<div id="gasBanner">
+  <label>☁️ Drive保存先URL（GAS）：</label>
+  <input type="text" id="gasInput" placeholder="Google Apps ScriptのウェブアプリURLをここに貼り付け">
+  <button id="gasSaveBtn" onclick="saveGasUrl()">URLを保存</button>
+  <span id="gasMsg"></span>
+</div>
+
+<!-- フィルター -->
+<div id="filterBar">
+  <label>ステータス
+    <select id="fSt" onchange="applyFilter()">
+      <option value="">すべて</option>
+      <option>未着手</option><option>見積中</option><option>見積説明済</option>
+      <option>ケアマネ提出</option><option>特注品完成</option><option>着工許可済</option>
+      <option>施工中</option><option>完成</option><option>集金済み</option>
+      <option>完了</option><option>キャンセル</option>
+    </select>
+  </label>
+  <label>居宅名 <select id="fKy" onchange="applyFilter()"><option value="">すべて</option></select></label>
+  <label>年度   <select id="fNd" onchange="applyFilter()"><option value="">すべて</option></select></label>
+  <label>キーワード <input type="text" id="fKw" placeholder="利用者名・ケアマネ…" oninput="applyFilter()" style="width:130px"></label>
+  <span id="fcnt"></span>
+</div>
+
+<!-- 凡例 -->
+<div id="legend">
+  <b>進捗色：</b>
+  <span><span class="lbox" style="background:#dbeafe"></span>見積日</span>
+  <span><span class="lbox" style="background:#e0e7ff"></span>見積説明日</span>
+  <span><span class="lbox" style="background:#fef9c3"></span>ケアマネ提出</span>
+  <span><span class="lbox" style="background:#dcfce7"></span>着工許可</span>
+  <span><span class="lbox" style="background:#fed7aa"></span>着工日</span>
+  <span><span class="lbox" style="background:#bbf7d0"></span>完成日</span>
+  <span><span class="lbox" style="background:#e9d5ff"></span>集金</span>
+  <span><span class="lbox" style="background:#a7f3d0"></span>完了</span>
+  <span><span class="hbox"></span>特注品なし（網掛け）</span>
+</div>
+
+<!-- テーブル -->
+<div id="tWrap">
+<table id="mainTable">
+  <thead>
+    <tr class="grp">
+      <th colspan="2">操作</th>
+      <th colspan="5">基本情報</th>
+      <th colspan="9">金額・工事区分</th>
+      <th colspan="9">工程管理</th>
+      <th colspan="2">完了処理</th>
+    </tr>
+    <tr class="shdr">
+      <th style="min-width:28px">#</th>
+      <th style="min-width:44px">削除</th>
+      <th style="min-width:100px">ステータス</th>
+      <th style="min-width:88px">利用者名</th>
+      <th style="min-width:108px">居宅名</th>
+      <th style="min-width:88px">ケアマネ</th>
+      <th style="min-width:50px">年度</th>
+      <th style="min-width:102px">見積日</th>
+      <th style="min-width:42px">特注品</th>
+      <th style="min-width:80px">合計金額</th>
+      <th style="min-width:80px">自社金額</th>
+      <th style="min-width:80px">外注金額</th>
+      <th style="min-width:42px">自社<br>介保</th>
+      <th style="min-width:42px">自社<br>自費</th>
+      <th style="min-width:42px">外注<br>介保</th>
+      <th style="min-width:42px">外注<br>自費</th>
+      <th style="min-width:42px">キャン<br>セル</th>
+      <th style="min-width:102px">見積<br>説明日</th>
+      <th style="min-width:102px">ケアマネ<br>提出日</th>
+      <th style="min-width:42px">特注品<br>完成</th>
+      <th style="min-width:102px">着工<br>許可日</th>
+      <th style="min-width:102px">着工日</th>
+      <th style="min-width:102px">完成日</th>
+      <th style="min-width:102px">ケアマネ<br>完了報告日</th>
+      <th style="min-width:42px">集金</th>
+      <th style="min-width:42px">完了</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<!-- 集計モーダル -->
+<div id="mOverlay" onclick="ovClick(event)">
+  <div id="mBox">
+    <div id="mHead">
+      <h2>📊 年度別集計表</h2>
+      <small>完成日基準 ／ キャンセル除外</small>
+      <button id="mClose" onclick="closeModal()">✕ 閉じる</button>
+    </div>
+    <div id="mBody"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+var SAVE_KEY = 'kaishuu_s1';
+var GAS_KEY  = 'kaishuu_gas';
+var rows = [], nextId = 1;
+
+window.addEventListener('load', function() {
+  loadLocal(); loadGasUrl(); renderAll();
+});
+
+/* ====== 保存 ====== */
+function saveLocal() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({rows:rows, nextId:nextId}));
+    var v = JSON.parse(localStorage.getItem(SAVE_KEY));
+    toast('💾 保存完了 — '+v.rows.length+'件を保存しました', false);
+  } catch(e) { toast('⚠ 保存失敗: '+e.message, true); }
+}
+function loadLocal() {
+  try {
+    var raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    var d = JSON.parse(raw);
+    if (d && Array.isArray(d.rows)) { rows=d.rows; nextId=d.nextId||rows.length+1; }
+  } catch(e) { rows=[]; nextId=1; }
+}
+function clearAll() {
+  if (!confirm('全データを消去しますか？')) return;
+  rows=[]; nextId=1; localStorage.removeItem(SAVE_KEY); renderAll();
+  toast('消去しました', false);
+}
+setInterval(function(){
+  if(rows.length>0) try{localStorage.setItem(SAVE_KEY,JSON.stringify({rows:rows,nextId:nextId}));}catch(e){}
+},60000);
+
+/* ====== GAS ====== */
+function loadGasUrl() {
+  var u=localStorage.getItem(GAS_KEY)||'';
+  document.getElementById('gasInput').value=u; updateGasMsg(u);
+}
+function saveGasUrl() {
+  var u=document.getElementById('gasInput').value.trim();
+  if(!u){toast('URLを入力してください',true);return;}
+  if(u.indexOf('script.google.com')===-1){toast('⚠ GASのURLを入力してください',true);return;}
+  localStorage.setItem(GAS_KEY,u); updateGasMsg(u);
+  toast('✅ Drive保存先URLを登録しました',false);
+}
+function updateGasMsg(u) {
+  var el=document.getElementById('gasMsg'), bn=document.getElementById('gasBanner');
+  if(u&&u.indexOf('script.google.com')!==-1){
+    el.textContent='✅ URL設定済み'; el.style.color='#065f46';
+    bn.style.background='#d1fae5'; bn.style.borderColor='#10b981';
+  } else {
+    el.textContent='⚠ URLが未設定'; el.style.color='#92400e';
+    bn.style.background='#fffbeb'; bn.style.borderColor='#f59e0b';
+  }
+}
+
+/* ====== 行操作 ====== */
+function makeRow() {
+  return {id:nextId++,name:'',kyotaku:'',cm:'',estDate:'',special:false,
+    total:'',jisha:'',jKaigo:false,jJihi:false,gKaigo:false,gJihi:false,cancel:false,
+    expDate:'',subDate:'',spDone:false,prmDate:'',staDate:'',finDate:'',
+    repDate:'',collect:false,complete:false};
+}
+function addRow() {
+  rows.push(makeRow()); renderAll();
+  setTimeout(function(){
+    var l=document.getElementById('tbody').lastElementChild;
+    if(l) l.scrollIntoView({block:'nearest'});
+  },80);
+}
+function delRow(id) {
+  if(!confirm('削除しますか？')) return;
+  rows=rows.filter(function(r){return r.id!==id;}); renderAll();
+}
+function getRow(id) { for(var i=0;i<rows.length;i++) if(rows[i].id===id) return rows[i]; return null; }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+
+/* ====== 計算 ====== */
+function ext(r) { return Math.max(0,(parseFloat(r.total)||0)-(parseFloat(r.jisha)||0)); }
+function nendo(ds) {
+  if(!ds) return '';
+  var d=new Date(ds); return (d.getMonth()+1>=4)?d.getFullYear():d.getFullYear()-1;
+}
+function fmtY(n) { return n?Number(n).toLocaleString('ja-JP')+'円':'─'; }
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function getStatus(r) {
+  if(r.cancel)   return {t:'キャンセル',  c:'b-red'};
+  if(r.complete) return {t:'完了',        c:'b-teal'};
+  if(r.collect)  return {t:'集金済み',    c:'b-teal'};
+  if(r.finDate)  return {t:'完成',        c:'b-grn'};
+  if(r.staDate)  return {t:'施工中',      c:'b-ora'};
+  if(r.prmDate)  return {t:'着工許可済',  c:'b-grn'};
+  if(r.spDone)   return {t:'特注品完成',  c:'b-yel'};
+  if(r.subDate)  return {t:'ケアマネ提出',c:'b-yel'};
+  if(r.expDate)  return {t:'見積説明済',  c:'b-ind'};
+  if(r.estDate)  return {t:'見積中',      c:'b-blue'};
+  return {t:'未着手',c:'b-grey'};
+}
+
+/* ====== テーブル描画 ====== */
+function renderAll() { rebuildFilters(); renderTable(rows); }
+
+function renderTable(data) {
+  var tbody=document.getElementById('tbody');
+  tbody.innerHTML='';
+  for(var i=0;i<data.length;i++) {
+    var r=data[i], id=r.id, g=ext(r);
+    var nd=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
+    var st=getStatus(r);
+
+    var cE=r.estDate?'c-est':'', cX=r.expDate?'c-exp':'';
+    var cS=r.subDate?'c-sub':'', cP=r.prmDate?'c-prm':'';
+    var cA=r.staDate?'c-sta':'', cF=r.finDate?'c-fin':'';
+    var cC=r.collect?'c-col':'',  cZ=r.complete?'c-cmp':'';
+
+    var tr=document.createElement('tr');
+    if(r.cancel) tr.className='canceled';
+
+    /* ---- 行番号 ---- */
+    var t0=document.createElement('td');
+    t0.style.padding='10px 6px'; t0.style.color='#9ca3af'; t0.style.fontSize='10px';
+    t0.textContent=i+1; tr.appendChild(t0);
+
+    /* ---- 削除 ---- */
+    var t1=document.createElement('td');
+    t1.className='del-td';
+    t1.innerHTML='<button class="dbtn" onclick="delRow('+id+')">🗑</button>';
+    tr.appendChild(t1);
+
+    /* ---- ステータス（自動） ---- */
+    var t2=document.createElement('td');
+    t2.style.padding='8px 4px';
+    t2.innerHTML='<span class="badge '+st.c+'">'+st.t+'</span>';
+    tr.appendChild(t2);
+
+    /* ---- テキスト編集セル ---- */
+    function mkText(val, placeholder, key, rerender) {
+      var td=document.createElement('td');
+      td.contentEditable='true';
+      td.setAttribute('data-placeholder', placeholder);
+      td.textContent=val;
+      td.addEventListener('blur', function() {
+        var row=getRow(id); if(!row) return;
+        row[key]=this.textContent.trim();
+        if(rerender) renderAll();
+      });
+      td.addEventListener('keydown', function(e) {
+        if(e.key==='Enter') { e.preventDefault(); this.blur(); }
+      });
+      return td;
+    }
+
+    /* ---- 数値編集セル ---- */
+    function mkNum(val, key) {
+      var td=document.createElement('td');
+      td.contentEditable='true';
+      td.className='num-edit';
+      td.setAttribute('data-placeholder','0');
+      td.textContent=val||'';
+      td.addEventListener('blur', function() {
+        var row=getRow(id); if(!row) return;
+        var v=this.textContent.trim().replace(/,/g,'');
+        if(v===''||isNaN(v)) v='';
+        row[key]=v;
+        renderAll();
+      });
+      td.addEventListener('keydown', function(e) {
+        if(e.key==='Enter') { e.preventDefault(); this.blur(); }
+      });
+      return td;
+    }
+
+    /* ---- 日付セル ---- */
+    function mkDate(val, key, cls, rerender) {
+      var td=document.createElement('td');
+      td.className='date-td'+(cls?' '+cls:'');
+      var inp=document.createElement('input');
+      inp.type='date'; inp.value=val||'';
+      inp.addEventListener('change', function() {
+        var row=getRow(id); if(!row) return;
+        row[key]=this.value;
+        if(rerender) renderAll();
+      });
+      td.appendChild(inp);
+      return td;
+    }
+
+    /* ---- チェックボックスセル ---- */
+    function mkChk(val, key, cls, rerender) {
+      var td=document.createElement('td');
+      td.className='chk-td'+(cls?' '+cls:'');
+      var inp=document.createElement('input');
+      inp.type='checkbox'; inp.checked=!!val;
+      inp.addEventListener('change', function() {
+        var row=getRow(id); if(!row) return;
+        row[key]=this.checked;
+        if(rerender) renderAll();
+      });
+      td.appendChild(inp);
+      return td;
+    }
+
+    tr.appendChild(mkText(r.name,   '氏名',   'name',     false));
+    tr.appendChild(mkText(r.kyotaku,'居宅名', 'kyotaku',  true));
+    tr.appendChild(mkText(r.cm,     '担当者', 'cm',       false));
+
+    /* 年度（表示のみ） */
+    var tnd=document.createElement('td');
+    tnd.style.padding='10px 4px'; tnd.style.fontWeight='600'; tnd.style.color='#374151';
+    tnd.textContent=nd?nd+'年度':''; tr.appendChild(tnd);
+
+    tr.appendChild(mkDate(r.estDate,'estDate',cE,true));
+    tr.appendChild(mkChk(r.special,'special','',true));
+
+    /* 特注品なし → 網掛け */
+    if(!r.special) {
+      var spTd=tr.lastElementChild; spTd.className='chk-td hatch';
+    }
+
+    tr.appendChild(mkNum(r.total,'total'));
+    tr.appendChild(mkNum(r.jisha,'jisha'));
+
+    /* 外注金額（計算値） */
+    var tg=document.createElement('td');
+    tg.className='ext-td';
+    tg.textContent=g>0?g.toLocaleString('ja-JP'):'';
+    tr.appendChild(tg);
+
+    tr.appendChild(mkChk(r.jKaigo,'jKaigo','',false));
+    tr.appendChild(mkChk(r.jJihi, 'jJihi', '',false));
+    tr.appendChild(mkChk(r.gKaigo,'gKaigo','',false));
+    tr.appendChild(mkChk(r.gJihi, 'gJihi', '',false));
+    tr.appendChild(mkChk(r.cancel,'cancel','',true));
+
+    tr.appendChild(mkDate(r.expDate,'expDate',cX,true));
+    tr.appendChild(mkDate(r.subDate,'subDate',cS,true));
+
+    var sdTd=mkChk(r.spDone,'spDone','',true);
+    if(!r.special) sdTd.className='chk-td hatch';
+    tr.appendChild(sdTd);
+
+    tr.appendChild(mkDate(r.prmDate,'prmDate',cP,true));
+    tr.appendChild(mkDate(r.staDate,'staDate',cA,true));
+    tr.appendChild(mkDate(r.finDate,'finDate',cF,true));
+    tr.appendChild(mkDate(r.repDate,'repDate','',false));
+    tr.appendChild(mkChk(r.collect, 'collect',cC,true));
+    tr.appendChild(mkChk(r.complete,'complete',cZ,true));
+
+    tbody.appendChild(tr);
+  }
+  document.getElementById('fcnt').textContent='表示 '+data.length+'件 / 全 '+rows.length+'件';
+}
+
+/* ====== フィルター ====== */
+function rebuildFilters() {
+  var ks=[],ks2={};
+  rows.forEach(function(r){if(r.kyotaku&&!ks2[r.kyotaku]){ks2[r.kyotaku]=1;ks.push(r.kyotaku);}});ks.sort();
+  var ns=[],ns2={};
+  rows.forEach(function(r){var ds=r.finDate||r.estDate;if(ds){var n=nendo(ds);if(n&&!ns2[n]){ns2[n]=1;ns.push(n);}}});ns.sort(function(a,b){return b-a;});
+  var fky=document.getElementById('fKy'),ck=fky.value;
+  fky.innerHTML='<option value="">すべて</option>'+ks.map(function(k){return '<option'+(k===ck?' selected':'')+'>'+esc(k)+'</option>';}).join('');
+  var fnd=document.getElementById('fNd'),cn=fnd.value;
+  fnd.innerHTML='<option value="">すべて</option>'+ns.map(function(n){return '<option value="'+n+'"'+(String(cn)===String(n)?' selected':'')+'>'+n+'年度</option>';}).join('');
+}
+function applyFilter() {
+  var st=document.getElementById('fSt').value, ky=document.getElementById('fKy').value;
+  var nd=document.getElementById('fNd').value, kw=document.getElementById('fKw').value.toLowerCase();
+  renderTable(rows.filter(function(r){
+    var s=getStatus(r).t, n=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
+    if(st&&s!==st)return false; if(ky&&r.kyotaku!==ky)return false;
+    if(nd&&String(n)!==nd)return false;
+    if(kw&&(r.name+r.kyotaku+r.cm).toLowerCase().indexOf(kw)===-1)return false;
+    return true;
+  }));
+}
+
+/* ====== Drive バックアップ ====== */
+function backupDrive() {
+  var gasUrl=localStorage.getItem(GAS_KEY)||'';
+  if(!gasUrl||gasUrl.indexOf('script.google.com')===-1){toast('⚠ まずGAS URLを上のバナーに入力・保存してください',true);return;}
+  if(rows.length===0){toast('⚠ データがありません',true);return;}
+  var btn=document.getElementById('driveBtn');
+  btn.textContent='⏳ 保存中…'; btn.disabled=true;
+  try {
+    var WB=XLSX.utils.book_new();
+    var H=['#','ステータス','利用者名','居宅名','ケアマネ','年度','見積日','特注品',
+      '合計金額','自社金額','外注金額','自社介保','自社自費','外注介保','外注自費',
+      'キャンセル','見積説明日','ケアマネ提出日','特注品完成','着工許可日',
+      '着工日','完成日','ケアマネ完了報告日','集金','完了'];
+    var d1=[H];
+    rows.forEach(function(r,i){
+      var g=ext(r),nd=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
+      d1.push([i+1,getStatus(r).t,r.name,r.kyotaku,r.cm,nd?nd+'年度':'',
+        r.estDate,r.special?'✓':'',parseFloat(r.total)||0,parseFloat(r.jisha)||0,g,
+        r.jKaigo?'✓':'',r.jJihi?'✓':'',r.gKaigo?'✓':'',r.gJihi?'✓':'',r.cancel?'✓':'',
+        r.expDate,r.subDate,r.spDone?'✓':'',r.prmDate,r.staDate,r.finDate,
+        r.repDate,r.collect?'✓':'',r.complete?'✓':'']);
+    });
+    var ws1=XLSX.utils.aoa_to_sheet(d1);
+    XLSX.utils.book_append_sheet(WB,ws1,'進捗一覧');
+    var act=rows.filter(function(r){return !r.cancel&&r.finDate;});
+    var ns=[],ns2={};act.forEach(function(r){var n=nendo(r.finDate);if(!ns2[n]){ns2[n]=1;ns.push(n);}});ns.sort(function(a,b){return b-a;});
+    var NS={};
+    act.forEach(function(r){var n=nendo(r.finDate),g=ext(r);
+      if(!NS[n])NS[n]={cnt:0,ts:0,jc:0,js:0,gc:0,gs:0};
+      NS[n].cnt++;NS[n].ts+=parseFloat(r.total)||0;
+      if((parseFloat(r.jisha)||0)>0){NS[n].jc++;NS[n].js+=parseFloat(r.jisha)||0;}
+      if(g>0){NS[n].gc++;NS[n].gs+=g;}
+    });
+    var d2=[['項目'].concat(ns.map(function(n){return n+'年度';}))];
+    [['受注件数',function(s){return s?s.cnt:0;}],
+     ['合計金額',function(s){return s?s.ts:0;}],
+     ['自社件数累計',function(s){return s?s.jc:0;}],
+     ['自社単価',function(s){return s&&s.jc?Math.round(s.js/s.jc):0;}],
+     ['外注件数累計',function(s){return s?s.gc:0;}],
+     ['外注単価',function(s){return s&&s.gc?Math.round(s.gs/s.gc):0;}]
+    ].forEach(function(row){d2.push([row[0]].concat(ns.map(function(n){return row[1](NS[n]);})));});
+    XLSX.utils.book_append_sheet(WB,XLSX.utils.aoa_to_sheet(d2),'年度別集計');
+    var b64=XLSX.write(WB,{bookType:'xlsx',type:'base64'});
+    var now=new Date();
+    var fname='住宅改修受注進捗_'+now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'_'+pad(now.getHours())+pad(now.getMinutes())+'.xlsx';
+    fetch(gasUrl,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({base64:b64,filename:fname})})
+    .then(function(res){return res.json();})
+    .then(function(data){
+      btn.textContent='☁️ Driveへ保存'; btn.disabled=false;
+      if(data.ok) toast('✅ Drive保存完了 — '+data.filename,false);
+      else toast('⚠ Drive保存失敗: '+(data.error||'不明'),true);
+    }).catch(function(err){btn.textContent='☁️ Driveへ保存';btn.disabled=false;toast('⚠ 通信エラー: '+err.message,true);});
+  } catch(e){btn.textContent='☁️ Driveへ保存';btn.disabled=false;toast('⚠ エラー: '+e.message,true);}
+}
+
+/* ====== CSV ====== */
+function doCSV() {
+  try {
+    var H=['#','ステータス','利用者名','居宅名','ケアマネ','年度','見積日','特注品',
+      '合計金額','自社金額','外注金額','自社介保','自社自費','外注介保','外注自費',
+      'キャンセル','見積説明日','ケアマネ提出日','特注品完成','着工許可日',
+      '着工日','完成日','ケアマネ完了報告日','集金','完了'];
+    var lines=rows.map(function(r,i){
+      var g=ext(r),nd=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
+      return [i+1,getStatus(r).t,r.name,r.kyotaku,r.cm,nd?nd+'年度':'',
+        r.estDate,r.special?'✓':'',r.total,r.jisha,g,
+        r.jKaigo?'✓':'',r.jJihi?'✓':'',r.gKaigo?'✓':'',r.gJihi?'✓':'',r.cancel?'✓':'',
+        r.expDate,r.subDate,r.spDone?'✓':'',r.prmDate,r.staDate,r.finDate,
+        r.repDate,r.collect?'✓':'',r.complete?'✓':''
+      ].map(function(v){return '"'+String(v==null?'':v).replace(/"/g,'""')+'"';}).join(',');
+    });
+    var csv='\uFEFF'+H.map(function(v){return '"'+v+'"';}).join(',')+'\r\n'+lines.join('\r\n');
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a'); a.style.display='none'; a.href=url;
+    var now=new Date();
+    a.download='住宅改修受注進捗_'+now.getFullYear()+pad(now.getMonth()+1)+pad(now.getDate())+'.csv';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+    toast('✅ CSV出力完了 — '+rows.length+'件',false);
+  } catch(e){toast('⚠ CSV失敗: '+e.message,true);}
+}
+
+/* ====== 集計モーダル ====== */
+function openModal()  { buildModal(); document.getElementById('mOverlay').classList.add('open'); }
+function closeModal() { document.getElementById('mOverlay').classList.remove('open'); }
+function ovClick(e)   { if(e.target===document.getElementById('mOverlay')) closeModal(); }
+
+function buildModal() {
+  var body=document.getElementById('mBody');
+  var act=rows.filter(function(r){return !r.cancel&&r.finDate;});
+  if(!act.length){body.innerHTML='<p style="padding:20px;color:#6b7280">完成日が入力されたデータがありません。</p>';return;}
+  var NL=[],NS2={};act.forEach(function(r){var n=nendo(r.finDate);if(!NS2[n]){NS2[n]=1;NL.push(n);}});NL.sort(function(a,b){return b-a;});
+  var KL=[],KS2={};act.forEach(function(r){if(r.kyotaku&&!KS2[r.kyotaku]){KS2[r.kyotaku]=1;KL.push(r.kyotaku);}});KL.sort();
+  var NS={};
+  act.forEach(function(r){var n=nendo(r.finDate),g=ext(r);
+    if(!NS[n])NS[n]={cnt:0,ts:0,jc:0,js:0,gc:0,gs:0};
+    NS[n].cnt++;NS[n].ts+=parseFloat(r.total)||0;
+    if((parseFloat(r.jisha)||0)>0){NS[n].jc++;NS[n].js+=parseFloat(r.jisha)||0;}
+    if(g>0){NS[n].gc++;NS[n].gs+=g;}
+  });
+  var KD={};
+  act.forEach(function(r){var n=nendo(r.finDate),g=ext(r);
+    if(!KD[r.kyotaku])KD[r.kyotaku]={};
+    if(!KD[r.kyotaku][n])KD[r.kyotaku][n]={cnt:0,ts:0,jc:0,gc:0};
+    KD[r.kyotaku][n].cnt++;KD[r.kyotaku][n].ts+=parseFloat(r.total)||0;
+    if((parseFloat(r.jisha)||0)>0)KD[r.kyotaku][n].jc++;
+    if(g>0)KD[r.kyotaku][n].gc++;
+  });
+  function jT(s){return s&&s.jc?Math.round(s.js/s.jc):0;}
+  function gT(s){return s&&s.gc?Math.round(s.gs/s.gc):0;}
+  function dif(c,p,m){var d=c-p;if(d===0)return '<td class="ev">─</td><td class="ev">─</td>';
+    var pct=p?Math.round(d/p*100):100,cl=d>0?'up':'dn',sg=d>0?'▲':'▼';
+    return '<td class="'+cl+'">'+sg+(m?Math.abs(d).toLocaleString('ja-JP')+'円':Math.abs(d))+'</td><td class="'+cl+'">'+pct+'%</td>';}
+  var jr=act.filter(function(r){return(parseFloat(r.jisha)||0)>0;});
+  var gr=act.filter(function(r){return ext(r)>0;});
+  var jA=jr.length?Math.round(jr.reduce(function(a,r){return a+(parseFloat(r.jisha)||0);},0)/jr.length):0;
+  var gA=gr.length?Math.round(gr.reduce(function(a,r){return a+ext(r);},0)/gr.length):0;
+  var SROWS=[
+    {l:'受注件数（件）',fn:function(s){return s?s.cnt:0;},m:false},
+    {l:'合計金額（円）',fn:function(s){return s?s.ts:0;},m:true},
+    {l:'自社施行件数累計（件）',fn:function(s){return s?s.jc:0;},m:false},
+    {l:'自社施行単価（円）',fn:function(s){return jT(s);},m:true},
+    {l:'外注施行件数累計（件）',fn:function(s){return s?s.gc:0;},m:false},
+    {l:'外注施行単価（円）',fn:function(s){return gT(s);},m:true}
+  ];
+  var h='';
+  h+='<div class="ss"><div class="st">【全体サマリー】</div><div class="sum-cards">';
+  h+='<div class="sum-card sc-b"><div class="lbl">完成済み件数</div><div class="val">'+act.length+'件</div></div>';
+  h+='<div class="sum-card sc-g"><div class="lbl">自社施行件数累計</div><div class="val">'+jr.length+'件</div></div>';
+  h+='<div class="sum-card sc-g"><div class="lbl">自社施行単価（平均）</div><div class="val" style="font-size:17px">'+(jA?jA.toLocaleString('ja-JP')+'円':'─')+'</div></div>';
+  h+='<div class="sum-card sc-p"><div class="lbl">外注施行件数累計</div><div class="val">'+gr.length+'件</div></div>';
+  h+='<div class="sum-card sc-p"><div class="lbl">外注施行単価（平均）</div><div class="val" style="font-size:17px">'+(gA?gA.toLocaleString('ja-JP')+'円':'─')+'</div></div>';
+  h+='</div></div>';
+  h+='<div class="ss"><div class="st">① 年度別サマリー</div>';
+  h+='<div class="sn">キャンセル除外・完成日基準 ／ 自社件数：自社金額＞0 ／ 外注件数：外注金額＞0</div>';
+  h+='<table class="stbl"><thead><tr><th rowspan="2" style="vertical-align:middle">項目</th>';
+  NL.forEach(function(n,i){var cs=(i===0&&NL[1])?3:1;h+='<th class="'+(i===0?'hc':'hp')+'" colspan="'+cs+'"><span class="yb '+(i===0?'ybc':'ybp')+'">'+n+'年度</span></th>';});
+  h+='</tr><tr>';
+  NL.forEach(function(n,i){h+='<th class="'+(i===0?'hc':'hp')+'">値</th>';if(i===0&&NL[1])h+='<th>増減</th><th>増減率</th>';});
+  h+='</tr></thead><tbody>';
+  SROWS.forEach(function(row){h+='<tr><td>'+row.l+'</td>';NL.forEach(function(n,i){var v=row.fn(NS[n]);h+='<td>'+(row.m?fmtY(v):(v||'─'))+'</td>';if(i===0&&NL[1])h+=dif(v,row.fn(NS[NL[1]]),row.m);});h+='</tr>';});
+  h+='</tbody></table></div>';
+  if(NL.length>=2){var cN=NL[0],pN=NL[1];
+    h+='<div class="ss"><div class="st">② 前年度・今年度 詳細比較</div>';
+    h+='<table class="stbl"><thead><tr><th rowspan="2" style="vertical-align:middle">項目</th>';
+    h+='<th class="hp"><span class="yb ybp">前年度 '+pN+'年度</span></th>';
+    h+='<th class="hc"><span class="yb ybc">今年度 '+cN+'年度</span></th>';
+    h+='<th colspan="2">前年比</th></tr><tr><th class="hp">値</th><th class="hc">値</th><th>増減</th><th>増減率</th></tr></thead><tbody>';
+    SROWS.forEach(function(row){var p=row.fn(NS[pN]||{}),c=row.fn(NS[cN]||{});
+      h+='<tr><td>'+row.l+'</td><td>'+(row.m?fmtY(p):(p||'─'))+'</td><td>'+(row.m?fmtY(c):(c||'─'))+'</td>'+dif(c,p,row.m)+'</tr>';});
+    h+='</tbody></table></div>';
+  }
+  h+='<div class="ss"><div class="st">③ 居宅別受注件数（年度別）</div>';
+  h+='<table class="stbl"><thead><tr><th rowspan="2" style="vertical-align:middle">居宅名</th>';
+  NL.forEach(function(n,i){var cs=(i===0&&NL[1])?5:4;h+='<th class="'+(i===0?'hc':'hp')+'" colspan="'+cs+'"><span class="yb '+(i===0?'ybc':'ybp')+'">'+n+'年度</span></th>';});
+  if(NL.length>=2)h+='<th rowspan="2" style="vertical-align:middle">前年比</th>';
+  h+='</tr><tr>';
+  NL.forEach(function(n,i){var c=i===0?'hc':'hp';h+='<th class="'+c+'">件数</th><th class="'+c+'">合計金額</th><th class="'+c+'">自社件数</th><th class="'+c+'">外注件数</th>';if(i===0&&NL[1])h+='<th></th>';});
+  h+='</tr></thead><tbody>';
+  var CT={};NL.forEach(function(n){CT[n]={cnt:0,ts:0,jc:0,gc:0};});
+  KL.forEach(function(ky){h+='<tr><td>'+esc(ky)+'</td>';
+    NL.forEach(function(n,i){var d=(KD[ky]&&KD[ky][n])?KD[ky][n]:{cnt:0,ts:0,jc:0,gc:0};
+      CT[n].cnt+=d.cnt;CT[n].ts+=d.ts;CT[n].jc+=d.jc;CT[n].gc+=d.gc;
+      h+='<td>'+(d.cnt||'─')+'</td><td>'+(d.ts?d.ts.toLocaleString('ja-JP')+'円':'─')+'</td><td>'+(d.jc||'─')+'</td><td>'+(d.gc||'─')+'</td>';if(i===0&&NL[1])h+='<td></td>';});
+    if(NL.length>=2){var c=(KD[ky]&&KD[ky][NL[0]])?KD[ky][NL[0]].cnt:0,p=(KD[ky]&&KD[ky][NL[1]])?KD[ky][NL[1]].cnt:0,d=c-p,cl=d>0?'up':d<0?'dn':'ev';h+='<td class="'+cl+'">'+(p===0?(c>0?'新規':'─'):((d>0?'▲':'▼')+Math.abs(d)))+'</td>';}
+    h+='</tr>';});
+  h+='<tr class="trow"><td>合　計</td>';
+  NL.forEach(function(n,i){h+='<td>'+(CT[n].cnt||'─')+'</td><td>'+(CT[n].ts?CT[n].ts.toLocaleString('ja-JP')+'円':'─')+'</td><td>'+(CT[n].jc||'─')+'</td><td>'+(CT[n].gc||'─')+'</td>';if(i===0&&NL[1])h+='<td></td>';});
+  if(NL.length>=2){var d=CT[NL[0]].cnt-CT[NL[1]].cnt,cl=d>0?'up':d<0?'dn':'ev';h+='<td class="'+cl+'">'+(d>0?'▲':d<0?'▼':'─')+(d!==0?Math.abs(d):'')+'</td>';}
+  h+='</tr></tbody></table></div>';
+  if(KL.length&&NL.length){var cN2=NL[0],pN2=NL[1];
+    var mx=1;KL.forEach(function(ky){var c=(KD[ky]&&KD[ky][cN2])?KD[ky][cN2].cnt:0,p=pN2&&KD[ky]&&KD[ky][pN2]?KD[ky][pN2].cnt:0;mx=Math.max(mx,c,p);});
+    h+='<div class="ss"><div class="st">④ 居宅別件数グラフ</div><div class="legend-row"><span class="legend-box" style="background:#2563eb"></span>'+cN2+'年度';
+    if(pN2)h+='&nbsp;&nbsp;<span class="legend-box" style="background:#d1d5db;border:1px solid #9ca3af"></span>'+pN2+'年度';
+    h+='</div><div class="chart-wrap">';
+    KL.forEach(function(ky){var c=(KD[ky]&&KD[ky][cN2])?KD[ky][cN2].cnt:0,p=pN2&&KD[ky]&&KD[ky][pN2]?KD[ky][pN2].cnt:0;
+      var h1=Math.round(c/mx*76),h2=Math.round(p/mx*76);
+      h+='<div class="chart-col"><div class="chart-bars">';
+      if(pN2)h+='<div class="cbar prev" style="height:'+h2+'px"></div>';
+      h+='<div class="cbar cur" style="height:'+h1+'px"></div></div><div class="chart-val">'+c+'件</div><div class="chart-lbl">'+esc(ky)+'</div></div>';});
+    h+='</div></div>';}
+  body.innerHTML=h;
+}
+
+/* ====== トースト ====== */
+function toast(msg,isErr){
+  var el=document.getElementById('toast');
+  el.textContent=msg; el.className=isErr?'show err':'show';
+  clearTimeout(el._t); el._t=setTimeout(function(){el.className='';},3500);
+}
+</script>
+</body>
+</html>
