@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>住宅改修 受注進捗管理</title>
-<!-- PWA -->
 <link rel="manifest" href="./manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -34,23 +33,58 @@ body { margin:0; padding:0; font-family:'Noto Sans JP',sans-serif; font-size:13p
 .btn-summ  { background:#7c3aed; color:#fff; }
 .btn-csv   { background:#0891b2; color:#fff; }
 .btn-drive { background:#059669; color:#fff; }
+.btn-import { background:#ea580c; color:#fff; }
 .btn-clr   { background:#dc2626; color:#fff; }
 .btn:disabled { opacity:0.5; }
+
+/* ===== タブ ===== */
+#tabs {
+  background:#fff;
+  border-bottom: 3px solid #1e3a5f;
+  display:flex; gap:0;
+  padding:0 12px;
+}
+.tab-btn {
+  padding:12px 24px;
+  border:none; border-bottom:3px solid transparent;
+  background:none; cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif;
+  font-size:13px; font-weight:700;
+  color:#6b7280;
+  margin-bottom:-3px;
+  display:flex; align-items:center; gap:6px;
+  transition:all .15s;
+}
+.tab-btn.active {
+  color:#1e3a5f;
+  border-bottom:3px solid #1e3a5f;
+  background:#f0f5ff;
+}
+.tab-btn:hover:not(.active) { color:#374151; background:#f9fafb; }
+.tab-count {
+  display:inline-block;
+  padding:2px 8px; border-radius:10px;
+  font-size:11px; font-weight:700;
+}
+.tab-btn.active .tab-count { background:#1e3a5f; color:#fff; }
+.tab-btn:not(.active) .tab-count { background:#e5e7eb; color:#6b7280; }
+.tab-done.active { color:#15803d; border-bottom-color:#15803d; }
+.tab-done.active .tab-count { background:#15803d; }
 
 /* ===== GASバナー ===== */
 #gasBanner {
   background:#e0f2fe; border-bottom:2px solid #0284c7;
-  padding:8px 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:11px;
+  padding:7px 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:11px;
 }
 #gasBanner label { font-weight:700; color:#0c4a6e; white-space:nowrap; }
-#gasInput { flex:1; min-width:200px; padding:5px 8px; border:1px solid #0284c7; border-radius:4px; font-size:11px; height:32px; }
-#gasSaveBtn { padding:5px 14px; background:#0284c7; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-size:11px; height:32px; white-space:nowrap; }
+#gasInput { flex:1; min-width:200px; padding:5px 8px; border:1px solid #0284c7; border-radius:4px; font-size:11px; height:30px; }
+#gasSaveBtn { padding:5px 14px; background:#0284c7; color:#fff; border:none; border-radius:4px; font-weight:700; cursor:pointer; font-size:11px; height:30px; white-space:nowrap; }
 #gasMsg { font-size:11px; font-weight:700; }
 
 /* ===== フィルター ===== */
 #filterBar {
   background:#fff; border-bottom:1px solid #d1d5db;
-  padding:8px 12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  padding:7px 12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
 }
 #filterBar label { font-size:12px; font-weight:600; color:#374151; display:flex; align-items:center; gap:4px; }
 #filterBar select, #filterBar input[type="text"] {
@@ -62,13 +96,21 @@ body { margin:0; padding:0; font-family:'Noto Sans JP',sans-serif; font-size:13p
 /* ===== 凡例 ===== */
 #legend {
   background:#fff; border-bottom:1px solid #d1d5db;
-  padding:6px 12px; display:flex; gap:12px; flex-wrap:wrap; align-items:center; font-size:11px;
+  padding:5px 12px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; font-size:11px;
 }
 #legend b { font-size:12px; color:#1e3a5f; }
 .lbox { display:inline-block; width:18px; height:13px; border-radius:2px; border:1px solid rgba(0,0,0,0.2); vertical-align:middle; margin-right:3px; }
 .hbox { display:inline-block; width:22px; height:13px; border-radius:2px; border:1px solid #999;
   background-image:repeating-linear-gradient(45deg,#999 0,#999 1px,#eee 1px,#eee 5px);
   vertical-align:middle; margin-right:3px; }
+
+/* ===== 完了一覧のバナー ===== */
+#doneBanner {
+  background:#f0fdf4; border-bottom:2px solid #16a34a;
+  padding:8px 16px; display:none; align-items:center; gap:10px;
+  font-size:12px; color:#15803d; font-weight:600;
+}
+#doneBanner.show { display:flex; }
 
 /* ===== テーブルラッパー ===== */
 #tWrap { overflow-x:auto; -webkit-overflow-scrolling:touch; background:#fff; }
@@ -78,122 +120,67 @@ thead tr.grp th {
   background:#2d5a8e; color:#fff; font-size:12px; font-weight:700;
   padding:10px 6px; text-align:center; border:1px solid #1a4070; white-space:nowrap;
 }
+thead tr.grp.done-grp th { background:#166534; border-color:#14532d; }
+
 thead tr.shdr th {
   background:#dde5f0; color:#1e3a5f; font-size:11px; font-weight:700;
   padding:8px 5px; text-align:center; border:1px solid #b8c4d8;
   white-space:nowrap; line-height:1.4;
   position:sticky; top:52px; z-index:100;
 }
+thead tr.shdr.done-shdr th { background:#dcfce7; color:#166534; border-color:#86efac; }
 
 tbody tr { background:#fff; }
 tbody tr:nth-child(even) { background:#fafbfc; }
 tbody tr:hover td { background:#eff6ff !important; }
 tbody tr.canceled td { background:#fff0f0 !important; color:#bbb !important; text-decoration:line-through; }
+/* 完了行は薄い緑 */
+tbody tr.done-row td { background:#f0fdf4 !important; }
+tbody tr.done-row:hover td { background:#dcfce7 !important; }
 
-/* ===== 全tdの基本スタイル ===== */
 td {
   border:1px solid #d1d5db;
-  text-align:center;
-  vertical-align:middle;
-  color:#111;
-  font-size:12px;
-  white-space:nowrap;
-  /* paddingで行の高さを確保 - Safari対応 */
+  text-align:center; vertical-align:middle;
+  color:#111; font-size:12px; white-space:nowrap;
   padding:16px 8px;
 }
 
-/* ===== contenteditable テキスト入力セル ===== */
+/* contenteditable */
 td[contenteditable="true"] {
-  cursor:text;
-  min-width:88px;
-  padding:16px 8px;
-  font-size:12px;
-  outline:none;
+  cursor:text; min-width:88px; padding:16px 8px; font-size:12px; outline:none;
 }
-td[contenteditable="true"]:focus {
-  background:#eff6ff !important;
-  box-shadow:inset 0 0 0 2px #2563eb;
-}
-td[contenteditable="true"]:empty:before {
-  content:attr(data-ph);
-  color:#ccc;
-  font-size:11px;
-}
+td[contenteditable="true"]:focus { background:#eff6ff !important; box-shadow:inset 0 0 0 2px #2563eb; }
+td[contenteditable="true"]:empty:before { content:attr(data-ph); color:#ccc; font-size:11px; }
 
-/* 数値セル */
-td.num-td {
-  min-width:82px;
-  text-align:right;
-  padding:16px 10px;
-  font-size:12px;
-}
-td.num-td[contenteditable="true"]:empty:before {
-  content:'0';
-  color:#ccc;
-}
+td.num-td { min-width:82px; text-align:right; padding:16px 10px; font-size:12px; }
+td.num-td[contenteditable="true"]:empty:before { content:'0'; color:#ccc; }
 
-/* ===== 日付セル ===== */
-td.dt {
-  padding:0;
-  min-width:106px;
-}
+td.dt { padding:0; min-width:106px; }
 td.dt input[type="date"] {
-  display:block;
-  width:100%;
-  padding:17px 4px;
-  border:none;
-  outline:none;
-  background:transparent;
-  font-family:'Noto Sans JP',sans-serif;
-  font-size:11px;
-  color:#111;
-  text-align:center;
-  cursor:pointer;
-  box-sizing:border-box;
-  -webkit-appearance:none;
+  display:block; width:100%; padding:17px 4px;
+  border:none; outline:none; background:transparent;
+  font-family:'Noto Sans JP',sans-serif; font-size:11px; color:#111;
+  text-align:center; cursor:pointer; box-sizing:border-box; -webkit-appearance:none;
 }
 td.dt input[type="date"]:focus { background:#eff6ff; }
 td.dt input[type="date"]::-webkit-calendar-picker-indicator { opacity:0.5; cursor:pointer; font-size:14px; }
 
-/* ===== チェックボックスセル ===== */
-td.chk {
-  padding:14px 4px;
-  min-width:46px;
-}
-td.chk input[type="checkbox"] {
-  width:20px; height:20px;
-  display:block; margin:0 auto;
-  cursor:pointer;
-  accent-color:#2563eb;
-}
+td.chk { padding:14px 4px; min-width:46px; }
+td.chk input[type="checkbox"] { width:20px; height:20px; display:block; margin:0 auto; cursor:pointer; accent-color:#2563eb; }
 
-/* ===== 削除ボタンセル ===== */
-td.del {
-  padding:14px 6px;
-  min-width:48px;
-}
+td.del { padding:14px 6px; min-width:52px; }
 .dbtn {
-  display:block; margin:0 auto;
-  background:none; border:1px solid #e5e7eb; border-radius:6px;
-  cursor:pointer; color:#9ca3af; font-size:18px;
-  padding:6px 10px; line-height:1;
-  width:42px; text-align:center;
+  display:block; margin:0 auto; background:none; border:1px solid #e5e7eb; border-radius:6px;
+  cursor:pointer; color:#9ca3af; font-size:18px; padding:6px 10px; line-height:1; width:44px; text-align:center;
 }
 .dbtn:hover { color:#dc2626; background:#fee2e2; border-color:#fca5a5; }
 
-/* 行番号 */
 td.num-row { padding:16px 6px; color:#9ca3af; font-size:11px; min-width:32px; }
+td.st-td   { padding:12px 4px; min-width:108px; }
+td.nd-td   { padding:16px 6px; font-weight:700; color:#374151; min-width:56px; }
+td.ext-td  { padding:16px 8px; color:#7c3aed; font-weight:700; min-width:82px; }
 
-/* ステータスセル */
-td.st-td { padding:12px 4px; min-width:104px; }
-
-/* 年度セル */
-td.nd-td { padding:16px 6px; font-weight:700; color:#374151; min-width:54px; }
-
-/* 外注金額 */
-td.ext-td { padding:16px 8px; color:#7c3aed; font-weight:700; min-width:82px; }
-
-/* ===== ステータスバッジ ===== */
+/* ステータスバッジ */
 .badge { display:inline-block; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700; white-space:nowrap; }
 .b-grey { background:#f3f4f6; color:#6b7280; }
 .b-blue { background:#dbeafe; color:#1d4ed8; }
@@ -204,7 +191,7 @@ td.ext-td { padding:16px 8px; color:#7c3aed; font-weight:700; min-width:82px; }
 .b-teal { background:#a7f3d0; color:#065f46; }
 .b-red  { background:#fee2e2; color:#dc2626; }
 
-/* ===== 進捗色（!importantで確実に上書き） ===== */
+/* 進捗色 */
 td.c-est { background-color:#dbeafe !important; }
 td.c-exp { background-color:#e0e7ff !important; }
 td.c-sub { background-color:#fef9c3 !important; }
@@ -213,13 +200,8 @@ td.c-sta { background-color:#fed7aa !important; }
 td.c-fin { background-color:#bbf7d0 !important; }
 td.c-col { background-color:#e9d5ff !important; }
 td.c-cmp { background-color:#a7f3d0 !important; }
-
-/* 進捗色セル内のinputも同色に */
-td.c-est input, td.c-exp input, td.c-sub input,
-td.c-prm input, td.c-sta input, td.c-fin input,
-td.c-col input, td.c-cmp input {
-  background:transparent !important;
-}
+td.c-est input, td.c-exp input, td.c-sub input, td.c-prm input,
+td.c-sta input, td.c-fin input, td.c-col input, td.c-cmp input { background:transparent !important; }
 
 /* 網掛け */
 td.hatch {
@@ -228,18 +210,54 @@ td.hatch {
 }
 td.hatch input { background:transparent !important; }
 
-/* ===== トースト ===== */
+/* CSVインポートモーダル */
+#impOv { display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; }
+#impOv.open { display:flex; }
+#impBox {
+  background:#fff; border-radius:10px;
+  width:min(92vw,680px); max-height:88vh;
+  display:flex; flex-direction:column; overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+}
+#impHead { background:#ea580c; color:#fff; padding:14px 18px; display:flex; align-items:center; gap:10px; }
+#impHead h2 { font-size:15px; font-weight:700; margin:0; }
+#impClose { margin-left:auto; background:rgba(255,255,255,0.2); border:none; color:#fff; border-radius:5px; padding:5px 14px; cursor:pointer; font-size:13px; font-weight:700; }
+#impBody { padding:20px; overflow-y:auto; flex:1; }
+.imp-info {
+  background:#fff7ed; border:1px solid #fed7aa; border-radius:8px;
+  padding:14px 16px; margin-bottom:16px; font-size:12px; line-height:1.8; color:#374151;
+}
+.imp-info b { color:#ea580c; }
+.imp-warn {
+  background:#fef2f2; border:1px solid #fca5a5; border-radius:8px;
+  padding:10px 14px; margin-bottom:16px; font-size:12px; color:#dc2626; font-weight:600;
+}
+.imp-result {
+  background:#f0fdf4; border:1px solid #86efac; border-radius:8px;
+  padding:14px 16px; margin-bottom:16px; font-size:12px; line-height:1.9; color:#374151;
+}
+.imp-result b { color:#15803d; font-size:14px; }
+.imp-btns { display:flex; gap:10px; justify-content:flex-end; margin-top:16px; }
+.imp-btn {
+  padding:9px 20px; border:none; border-radius:6px; cursor:pointer;
+  font-family:'Noto Sans JP',sans-serif; font-size:13px; font-weight:700;
+}
+.imp-btn-ok     { background:#16a34a; color:#fff; }
+.imp-btn-add    { background:#2563eb; color:#fff; }
+.imp-btn-cancel { background:#e5e7eb; color:#374151; }
+#previewTable { width:100%; border-collapse:collapse; font-size:11px; margin-top:12px; max-height:240px; overflow-y:auto; display:block; }
+#previewTable th { background:#e8edf5; color:#1e3a5f; padding:6px 8px; border:1px solid #c5cdd8; white-space:nowrap; position:sticky; top:0; }
+#previewTable td { padding:5px 8px; border:1px solid #e0e4ea; white-space:nowrap; }
 #toast {
   position:fixed; bottom:20px; right:20px; z-index:9999;
-  background:#16a34a; color:#fff;
-  padding:12px 22px; border-radius:8px; font-weight:700; font-size:13px;
-  box-shadow:0 4px 12px rgba(0,0,0,0.2); opacity:0;
-  transition:opacity 0.3s; pointer-events:none; max-width:360px;
+  background:#16a34a; color:#fff; padding:12px 22px; border-radius:8px;
+  font-weight:700; font-size:13px; box-shadow:0 4px 12px rgba(0,0,0,0.2);
+  opacity:0; transition:opacity 0.3s; pointer-events:none; max-width:360px;
 }
 #toast.show { opacity:1; }
 #toast.err  { background:#dc2626; }
 
-/* ===== モーダル ===== */
+/* モーダル */
 #mOv { display:none; position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; }
 #mOv.open { display:flex; }
 #mBox { background:#fff; border-radius:10px; width:min(96vw,1100px); max-height:92vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,0.25); }
@@ -257,9 +275,8 @@ td.hatch input { background:transparent !important; }
 .sc-b { background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
 .sc-g { background:#f0fdf4; border-color:#bbf7d0; color:#15803d; }
 .sc-p { background:#faf5ff; border-color:#e9d5ff; color:#7c3aed; }
-
 .ss { margin-bottom:22px; }
-.st { font-size:13px; font-weight:700; color:#1e3a5f; border-left:4px solid #2d5a8e; padding-left:9px; margin-bottom:8px; }
+.st2 { font-size:13px; font-weight:700; color:#1e3a5f; border-left:4px solid #2d5a8e; padding-left:9px; margin-bottom:8px; }
 .sn { font-size:10px; color:#6b7280; margin-bottom:7px; }
 .stbl { border-collapse:collapse; width:100%; }
 .stbl th { background:#dde5f0; color:#1e3a5f; font-size:11px; font-weight:700; padding:7px 10px; border:1px solid #b8c4d8; text-align:center; white-space:nowrap; }
@@ -269,20 +286,20 @@ td.hatch input { background:transparent !important; }
 .stbl td:first-child { text-align:left; font-weight:600; background:#fafafa; }
 .stbl tr:hover td { background:#eff6ff; }
 .stbl tr.trow td { background:#e8edf5 !important; font-weight:700; }
-.yb  { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; }
+.yb { display:inline-block; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; }
 .ybc { background:#1e3a5f; color:#fff; }
 .ybp { background:#9ca3af; color:#fff; }
-.up  { color:#16a34a !important; font-weight:700; }
-.dn  { color:#dc2626 !important; font-weight:700; }
-.ev  { color:#9ca3af; }
+.up { color:#16a34a !important; font-weight:700; }
+.dn { color:#dc2626 !important; font-weight:700; }
+.ev { color:#9ca3af; }
 .chart-wrap { display:flex; gap:18px; flex-wrap:wrap; padding:6px 0; }
 .chart-col  { display:flex; flex-direction:column; align-items:center; gap:3px; }
 .chart-bars { display:flex; gap:3px; align-items:flex-end; height:80px; }
 .cbar { width:22px; border-radius:3px 3px 0 0; min-height:2px; }
 .cbar.cur  { background:#2563eb; }
 .cbar.prev { background:#d1d5db; border:1px solid #9ca3af; }
-.chart-val  { font-size:10px; font-weight:700; color:#374151; }
-.chart-lbl  { font-size:9px; color:#9ca3af; max-width:64px; text-align:center; white-space:normal; line-height:1.3; }
+.chart-val { font-size:10px; font-weight:700; color:#374151; }
+.chart-lbl { font-size:9px; color:#9ca3af; max-width:64px; text-align:center; white-space:normal; line-height:1.3; }
 .lr { display:flex; gap:12px; font-size:10px; color:#6b7280; margin-bottom:8px; align-items:center; }
 .lb { width:14px; height:10px; border-radius:2px; display:inline-block; vertical-align:middle; }
 </style>
@@ -292,18 +309,30 @@ td.hatch input { background:transparent !important; }
 <!-- トップバー -->
 <div id="topbar">
   <h1>住宅改修 受注進捗管理</h1>
-  <button class="btn btn-add"   onclick="addRow()">＋ 新規登録</button>
-  <button class="btn btn-save"  onclick="saveLocal()">💾 保存</button>
-  <button class="btn btn-summ"  onclick="openModal()">📊 集計表</button>
-  <button class="btn btn-csv"   onclick="doCSV()">CSV出力</button>
-  <button class="btn btn-drive" onclick="backupDrive()" id="driveBtn">☁️ Driveへ保存</button>
-  <button class="btn btn-clr"   onclick="clearAll()">全消去</button>
+  <button class="btn btn-add"    onclick="addRow()" id="btnAdd">＋ 新規登録</button>
+  <button class="btn btn-save"   onclick="saveLocal()">💾 保存</button>
+  <button class="btn btn-summ"   onclick="openModal()">📊 集計表</button>
+  <button class="btn btn-csv"    onclick="doCSV()">CSV出力</button>
+  <button class="btn btn-import" onclick="triggerImport()">📂 CSVから復旧</button>
+  <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="importCSV(this)">
+  <button class="btn btn-drive"  onclick="backupDrive()" id="driveBtn">☁️ Driveへ保存</button>
+  <button class="btn btn-clr"    onclick="clearAll()">全消去</button>
+</div>
+
+<!-- タブ -->
+<div id="tabs">
+  <button class="tab-btn active" id="tab-progress" onclick="switchTab('progress')">
+    📋 進捗中 <span class="tab-count" id="cnt-progress">0</span>
+  </button>
+  <button class="tab-btn tab-done" id="tab-done" onclick="switchTab('done')">
+    ✅ 完了済み <span class="tab-count" id="cnt-done">0</span>
+  </button>
 </div>
 
 <!-- GASバナー -->
 <div id="gasBanner">
   <label>☁️ Drive保存先URL：</label>
-  <input type="text" id="gasInput" placeholder="Google Apps ScriptのウェブアプリURLを貼り付け（設定方法は下記参照）">
+  <input type="text" id="gasInput" placeholder="Google Apps ScriptのウェブアプリURLを貼り付け">
   <button id="gasSaveBtn" onclick="saveGasUrl()">URLを保存</button>
   <span id="gasMsg"></span>
 </div>
@@ -316,7 +345,7 @@ td.hatch input { background:transparent !important; }
       <option>未着手</option><option>見積中</option><option>見積説明済</option>
       <option>ケアマネ提出</option><option>特注品完成</option><option>着工許可済</option>
       <option>施工中</option><option>完成</option><option>集金済み</option>
-      <option>完了</option><option>キャンセル</option>
+      <option>キャンセル</option>
     </select>
   </label>
   <label>居宅名 <select id="fKy" onchange="applyFilter()"><option value="">すべて</option></select></label>
@@ -339,48 +368,45 @@ td.hatch input { background:transparent !important; }
   <span><span class="hbox"></span>特注品なし</span>
 </div>
 
+<!-- 完了一覧バナー -->
+<div id="doneBanner">
+  ✅ 完了済み一覧 — 内容の閲覧・編集ができます（「完了」チェックを外すと進捗中に戻ります）
+</div>
+
 <!-- テーブル -->
 <div id="tWrap">
 <table>
-  <thead>
-    <tr class="grp">
-      <th colspan="2">操作</th>
-      <th colspan="5">基本情報</th>
-      <th colspan="9">金額・工事区分</th>
-      <th colspan="9">工程管理</th>
-      <th colspan="2">完了処理</th>
-    </tr>
-    <tr class="shdr">
-      <th style="min-width:32px">#</th>
-      <th style="min-width:52px">削除</th>
-      <th style="min-width:108px">ステータス</th>
-      <th style="min-width:92px">利用者名</th>
-      <th style="min-width:112px">居宅名</th>
-      <th style="min-width:92px">ケアマネ</th>
-      <th style="min-width:56px">年度</th>
-      <th style="min-width:108px">見積日</th>
-      <th style="min-width:46px">特注品</th>
-      <th style="min-width:86px">合計金額</th>
-      <th style="min-width:86px">自社金額</th>
-      <th style="min-width:86px">外注金額</th>
-      <th style="min-width:46px">自社<br>介保</th>
-      <th style="min-width:46px">自社<br>自費</th>
-      <th style="min-width:46px">外注<br>介保</th>
-      <th style="min-width:46px">外注<br>自費</th>
-      <th style="min-width:46px">キャン<br>セル</th>
-      <th style="min-width:108px">見積<br>説明日</th>
-      <th style="min-width:108px">ケアマネ<br>提出日</th>
-      <th style="min-width:46px">特注品<br>完成</th>
-      <th style="min-width:108px">着工<br>許可日</th>
-      <th style="min-width:108px">着工日</th>
-      <th style="min-width:108px">完成日</th>
-      <th style="min-width:108px">ケアマネ<br>完了報告日</th>
-      <th style="min-width:46px">集金</th>
-      <th style="min-width:46px">完了</th>
-    </tr>
+  <thead id="tableHead">
+    <!-- JSで生成 -->
   </thead>
   <tbody id="tbody"></tbody>
 </table>
+</div>
+
+<!-- CSVインポートモーダル -->
+<div id="impOv" onclick="impOverlayClick(event)">
+  <div id="impBox">
+    <div id="impHead">
+      <h2>📂 CSVからデータ復旧</h2>
+      <button id="impClose" onclick="closeImport()">✕ 閉じる</button>
+    </div>
+    <div id="impBody">
+      <div class="imp-info">
+        <b>【使い方】</b><br>
+        ① このアプリの「CSV出力」で保存したCSVファイルを選択します<br>
+        ② 読み込み内容をプレビューで確認します<br>
+        ③「全データを置き換えて復旧」または「現在のデータに追加」を選択します<br><br>
+        <b>【注意事項】</b><br>
+        ・「全データを置き換えて復旧」は現在のデータがすべて消えます<br>
+        ・「現在のデータに追加」は重複する可能性があります
+      </div>
+      <div id="impContent">
+        <div style="text-align:center;padding:20px;color:#9ca3af;font-size:13px">
+          CSVファイルを選択してください
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- 集計モーダル -->
@@ -398,15 +424,34 @@ td.hatch input { background:transparent !important; }
 <div id="toast"></div>
 
 <script>
-var SK = 'kaishuu_f2';
+var SK = 'kaishuu_f3';
 var GK = 'kaishuu_gas';
 var rows = [], nextId = 1;
+var currentTab = 'progress'; // 'progress' or 'done'
 
 /* ====== 起動 ====== */
 window.addEventListener('load', function() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
   loadLocal(); loadGasUrl(); renderAll();
 });
+
+/* ====== タブ切り替え ====== */
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-progress').className = 'tab-btn' + (tab==='progress' ? ' active' : '');
+  document.getElementById('tab-done').className     = 'tab-btn tab-done' + (tab==='done' ? ' active' : '');
+
+  /* 完了タブのとき：新規登録ボタン非表示、完了バナー表示 */
+  document.getElementById('btnAdd').style.display = (tab==='progress') ? '' : 'none';
+  var db = document.getElementById('doneBanner');
+  db.className = tab==='done' ? 'show' : '';
+
+  /* フィルターのステータス選択肢を変更 */
+  var fSt = document.getElementById('fSt');
+  fSt.value = ''; /* リセット */
+
+  renderAll();
+}
 
 /* ====== 保存 ====== */
 function saveLocal() {
@@ -436,8 +481,7 @@ setInterval(function(){
 /* ====== GAS ====== */
 function loadGasUrl() {
   var u = localStorage.getItem(GK)||'';
-  document.getElementById('gasInput').value = u;
-  updateGasMsg(u);
+  document.getElementById('gasInput').value = u; updateGasMsg(u);
 }
 function saveGasUrl() {
   var u = document.getElementById('gasInput').value.trim();
@@ -477,8 +521,7 @@ function delRow(id) {
   rows = rows.filter(function(r){return r.id!==id;}); renderAll();
 }
 function getRow(id) {
-  for (var i=0;i<rows.length;i++) if(rows[i].id===id) return rows[i];
-  return null;
+  for (var i=0;i<rows.length;i++) if(rows[i].id===id) return rows[i]; return null;
 }
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 
@@ -506,244 +549,252 @@ function getStatus(r) {
   return {t:'未着手', c:'b-grey'};
 }
 
-/* ====== テーブル描画 ====== */
-function renderAll() { rebuildFilters(); renderTable(rows); }
+/* ====== テーブルヘッダー生成 ====== */
+function buildHead(isDone) {
+  var head = document.getElementById('tableHead');
+  var gc = isDone ? ' done-grp' : '';
+  var sc = isDone ? ' done-shdr' : '';
+  head.innerHTML =
+    '<tr class="grp'+gc+'">' +
+    '<th colspan="2">操作</th>' +
+    '<th colspan="5">基本情報</th>' +
+    '<th colspan="9">金額・工事区分</th>' +
+    '<th colspan="9">工程管理</th>' +
+    '<th colspan="2">完了処理</th>' +
+    '</tr>' +
+    '<tr class="shdr'+sc+'">' +
+    '<th style="min-width:32px">#</th>' +
+    '<th style="min-width:52px">削除</th>' +
+    '<th style="min-width:108px">ステータス</th>' +
+    '<th style="min-width:92px">利用者名</th>' +
+    '<th style="min-width:112px">居宅名</th>' +
+    '<th style="min-width:92px">ケアマネ</th>' +
+    '<th style="min-width:56px">年度</th>' +
+    '<th style="min-width:108px">見積日</th>' +
+    '<th style="min-width:46px">特注品</th>' +
+    '<th style="min-width:86px">合計金額</th>' +
+    '<th style="min-width:86px">自社金額</th>' +
+    '<th style="min-width:86px">外注金額</th>' +
+    '<th style="min-width:46px">自社<br>介保</th>' +
+    '<th style="min-width:46px">自社<br>自費</th>' +
+    '<th style="min-width:46px">外注<br>介保</th>' +
+    '<th style="min-width:46px">外注<br>自費</th>' +
+    '<th style="min-width:46px">キャン<br>セル</th>' +
+    '<th style="min-width:108px">見積<br>説明日</th>' +
+    '<th style="min-width:108px">ケアマネ<br>提出日</th>' +
+    '<th style="min-width:46px">特注品<br>完成</th>' +
+    '<th style="min-width:108px">着工<br>許可日</th>' +
+    '<th style="min-width:108px">着工日</th>' +
+    '<th style="min-width:108px">完成日</th>' +
+    '<th style="min-width:108px">ケアマネ<br>完了報告日</th>' +
+    '<th style="min-width:46px">集金</th>' +
+    '<th style="min-width:46px">完了</th>' +
+    '</tr>';
+}
+
+/* ====== 全体描画 ====== */
+function renderAll() {
+  /* タブカウント更新 */
+  var progressRows = rows.filter(function(r){ return !r.complete; });
+  var doneRows     = rows.filter(function(r){ return r.complete; });
+  document.getElementById('cnt-progress').textContent = progressRows.length;
+  document.getElementById('cnt-done').textContent     = doneRows.length;
+
+  /* ヘッダー */
+  buildHead(currentTab === 'done');
+
+  /* フィルター再構築 */
+  rebuildFilters();
+
+  /* 表示対象 */
+  var base = currentTab === 'done' ? doneRows : progressRows;
+  renderTable(base);
+}
 
 function renderTable(data) {
+  /* フィルター適用 */
+  var st=document.getElementById('fSt').value;
+  var ky=document.getElementById('fKy').value;
+  var nd=document.getElementById('fNd').value;
+  var kw=document.getElementById('fKw').value.toLowerCase();
+  var filtered = data.filter(function(r){
+    var s=getStatus(r).t, n=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
+    if(st&&s!==st)return false;
+    if(ky&&r.kyotaku!==ky)return false;
+    if(nd&&String(n)!==nd)return false;
+    if(kw&&(r.name+r.kyotaku+r.cm).toLowerCase().indexOf(kw)===-1)return false;
+    return true;
+  });
+
   var tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
+  var isDone = currentTab === 'done';
 
-  for (var i=0; i<data.length; i++) {
-    var r=data[i], id=r.id;
+  for (var i=0; i<filtered.length; i++) {
+    var r=filtered[i], id=r.id;
     var g  = calcExt(r);
-    var nd = r.finDate ? nendo(r.finDate) : (r.estDate ? nendo(r.estDate) : '');
-    var st = getStatus(r);
-
-    /* 進捗クラス */
-    var cE = r.estDate  ? 'c-est' : '';
-    var cX = r.expDate  ? 'c-exp' : '';
-    var cS = r.subDate  ? 'c-sub' : '';
-    var cP = r.prmDate  ? 'c-prm' : '';
-    var cA = r.staDate  ? 'c-sta' : '';
-    var cF = r.finDate  ? 'c-fin' : '';
-    var cC = r.collect  ? 'c-col' : '';
-    var cZ = r.complete ? 'c-cmp' : '';
+    var nd2 = r.finDate ? nendo(r.finDate) : (r.estDate ? nendo(r.estDate) : '');
+    var st2 = getStatus(r);
+    var cE=r.estDate?'c-est':'', cX=r.expDate?'c-exp':'';
+    var cS=r.subDate?'c-sub':'', cP=r.prmDate?'c-prm':'';
+    var cA=r.staDate?'c-sta':'', cF=r.finDate?'c-fin':'';
+    var cC=r.collect?'c-col':'',  cZ=r.complete?'c-cmp':'';
 
     var tr = document.createElement('tr');
-    if (r.cancel) tr.className = 'canceled';
+    if (r.cancel)   tr.className = 'canceled';
+    else if (isDone) tr.className = 'done-row';
 
-    /* ---- ヘルパー関数（クロージャでidを捕捉） ---- */
-    function mkText(r_id, val, ph, key, rerender) {
-      var td = document.createElement('td');
-      td.contentEditable = 'true';
-      td.setAttribute('data-ph', ph);
-      td.textContent = val;
-      td.addEventListener('blur', (function(k, rr) {
-        return function() {
-          var row = getRow(r_id); if (!row) return;
-          row[k] = this.textContent.trim();
-          if (rr) renderAll();
-        };
-      })(key, rerender));
-      td.addEventListener('keydown', function(e) {
-        if (e.key==='Enter') { e.preventDefault(); this.blur(); }
-      });
+    /* ヘルパー */
+    function mkText(rid, val, ph, key, rerender) {
+      var td=document.createElement('td');
+      td.contentEditable='true'; td.setAttribute('data-ph',ph); td.textContent=val;
+      td.addEventListener('blur',(function(k,rr){return function(){
+        var row=getRow(rid);if(!row)return;
+        row[k]=this.textContent.trim(); if(rr)renderAll();
+      };})(key,rerender));
+      td.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}});
       return td;
     }
-
-    function mkNum(r_id, val, key, isTotalOrJisha) {
-      var td = document.createElement('td');
-      td.contentEditable = 'true';
-      td.className = 'num-td';
-      td.setAttribute('data-ph','0');
-      td.textContent = val || '';
-      td.addEventListener('blur', (function(k, isAmt) {
-        return function() {
-          var row = getRow(r_id); if (!row) return;
-          var v = this.textContent.trim().replace(/,/g,'').replace(/[^0-9.]/g,'');
-          if (v===''||isNaN(v)) v='';
-          row[k] = v;
-          /* 合計金額が入ったら自社金額に自動コピー（外注なしの場合）*/
-          if (isAmt === 'total') {
-            var ext = parseFloat(row.jisha)||0;
-            var tot = parseFloat(v)||0;
-            /* 外注が0なら自社=合計 */
-            if (ext === 0 && v !== '') row.jisha = v;
-          }
-          /* 外注金額が入ったら自社=合計-外注 */
-          if (isAmt === 'ext') {
-            var tot2 = parseFloat(row.total)||0;
-            var ext2 = parseFloat(v)||0;
-            row.jisha = String(Math.max(0, tot2 - ext2));
-          }
-          renderAll();
-        };
-      })(key, isTotalOrJisha));
-      td.addEventListener('keydown', function(e) {
-        if (e.key==='Enter') { e.preventDefault(); this.blur(); }
-      });
+    function mkNum(rid, val, key, mode) {
+      var td=document.createElement('td'); td.contentEditable='true'; td.className='num-td';
+      td.setAttribute('data-ph','0'); td.textContent=val||'';
+      td.addEventListener('blur',(function(k,m){return function(){
+        var row=getRow(rid);if(!row)return;
+        var v=this.textContent.trim().replace(/,/g,'').replace(/[^0-9.]/g,'');
+        if(v===''||isNaN(v))v='';
+        row[k]=v;
+        if(m==='total'&&v!==''){var ext=parseFloat(row.jisha)||0;if(ext===0)row.jisha=v;}
+        if(m==='ext'){var tot=parseFloat(row.total)||0;var ex=parseFloat(v)||0;row.jisha=String(Math.max(0,tot-ex));}
+        renderAll();
+      };})(key,mode));
+      td.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();this.blur();}});
       return td;
     }
-
-    function mkDate(r_id, val, key, cls, rerender) {
-      var td = document.createElement('td');
-      td.className = 'dt' + (cls ? ' '+cls : '');
-      var inp = document.createElement('input');
-      inp.type = 'date'; inp.value = val || '';
-      inp.addEventListener('change', (function(k, rr) {
-        return function() {
-          var row = getRow(r_id); if (!row) return;
-          row[k] = this.value;
-          if (rr) renderAll();
-        };
-      })(key, rerender));
-      td.appendChild(inp);
-      return td;
+    function mkDate(rid, val, key, cls, rerender) {
+      var td=document.createElement('td'); td.className='dt'+(cls?' '+cls:'');
+      var inp=document.createElement('input'); inp.type='date'; inp.value=val||'';
+      inp.addEventListener('change',(function(k,rr){return function(){
+        var row=getRow(rid);if(!row)return; row[k]=this.value; if(rr)renderAll();
+      };})(key,rerender));
+      td.appendChild(inp); return td;
+    }
+    function mkChk(rid, val, key, cls, rerender) {
+      var td=document.createElement('td'); td.className='chk'+(cls?' '+cls:'');
+      var inp=document.createElement('input'); inp.type='checkbox'; inp.checked=!!val;
+      inp.addEventListener('change',(function(k,rr){return function(){
+        var row=getRow(rid);if(!row)return; row[k]=this.checked; if(rr)renderAll();
+      };})(key,rerender));
+      td.appendChild(inp); return td;
     }
 
-    function mkChk(r_id, val, key, cls, rerender) {
-      var td = document.createElement('td');
-      td.className = 'chk' + (cls ? ' '+cls : '');
-      var inp = document.createElement('input');
-      inp.type = 'checkbox'; inp.checked = !!val;
-      inp.addEventListener('change', (function(k, rr) {
-        return function() {
-          var row = getRow(r_id); if (!row) return;
-          row[k] = this.checked;
-          if (rr) renderAll();
-        };
-      })(key, rerender));
-      td.appendChild(inp);
-      return td;
-    }
+    /* 行番号 */
+    var t0=document.createElement('td'); t0.className='num-row'; t0.textContent=i+1; tr.appendChild(t0);
+    /* 削除 */
+    var t1=document.createElement('td'); t1.className='del';
+    t1.innerHTML='<button class="dbtn" onclick="delRow('+id+')">🗑</button>'; tr.appendChild(t1);
+    /* ステータス */
+    var t2=document.createElement('td'); t2.className='st-td';
+    t2.innerHTML='<span class="badge '+st2.c+'">'+st2.t+'</span>'; tr.appendChild(t2);
 
-    /* ---- 行番号 ---- */
-    var t0 = document.createElement('td');
-    t0.className = 'num-row'; t0.textContent = i+1; tr.appendChild(t0);
+    tr.appendChild(mkText(id,r.name,   '氏名',   'name',    false));
+    tr.appendChild(mkText(id,r.kyotaku,'居宅名', 'kyotaku', true));
+    tr.appendChild(mkText(id,r.cm,     '担当者', 'cm',      false));
 
-    /* ---- 削除 ---- */
-    var t1 = document.createElement('td');
-    t1.className = 'del';
-    t1.innerHTML = '<button class="dbtn" onclick="delRow('+id+')">🗑</button>';
-    tr.appendChild(t1);
+    var tnd=document.createElement('td'); tnd.className='nd-td';
+    tnd.textContent=nd2?nd2+'年度':''; tr.appendChild(tnd);
 
-    /* ---- ステータス ---- */
-    var t2 = document.createElement('td');
-    t2.className = 'st-td';
-    t2.innerHTML = '<span class="badge '+st.c+'">'+st.t+'</span>';
-    tr.appendChild(t2);
+    tr.appendChild(mkDate(id,r.estDate,'estDate',cE,true));
 
-    /* ---- 基本情報 ---- */
-    tr.appendChild(mkText(id, r.name,    '氏名',   'name',    false));
-    tr.appendChild(mkText(id, r.kyotaku, '居宅名', 'kyotaku', true));
-    tr.appendChild(mkText(id, r.cm,      '担当者', 'cm',      false));
-
-    /* ---- 年度 ---- */
-    var tnd = document.createElement('td');
-    tnd.className = 'nd-td'; tnd.textContent = nd ? nd+'年度' : ''; tr.appendChild(tnd);
-
-    /* ---- 見積日 ---- */
-    tr.appendChild(mkDate(id, r.estDate, 'estDate', cE, true));
-
-    /* ---- 特注品 ---- */
-    var spTd = mkChk(id, r.special, 'special', '', true);
-    if (!r.special) spTd.className = 'chk hatch';
+    var spTd=mkChk(id,r.special,'special','',true);
+    if(!r.special) spTd.className='chk hatch';
     tr.appendChild(spTd);
 
-    /* ---- 合計金額（入力時→外注0なら自社に自動コピー）---- */
-    tr.appendChild(mkNum(id, r.total, 'total', 'total'));
+    tr.appendChild(mkNum(id,r.total,'total','total'));
+    tr.appendChild(mkNum(id,r.jisha,'jisha',false));
 
-    /* ---- 自社金額（直接入力も可）---- */
-    tr.appendChild(mkNum(id, r.jisha, 'jisha', false));
+    var extTd=document.createElement('td'); extTd.className='num-td ext-td';
+    extTd.textContent=g>0?fmtN(g):''; tr.appendChild(extTd);
 
-    /* ---- 外注金額（計算値 兼 入力欄：入力したら自社=合計-外注）---- */
-    var extTd = mkNum(id, g>0?String(g):'', 'ext_input', 'ext');
-    extTd.className = 'num-td ext-td';
-    extTd.style.color = '#7c3aed';
-    /* 外注金額はr.total-r.jishaを表示、ただし入力で上書き可能 */
-    extTd.textContent = g > 0 ? fmtN(g) : '';
-    tr.appendChild(extTd);
+    tr.appendChild(mkChk(id,r.jKaigo,'jKaigo','',false));
+    tr.appendChild(mkChk(id,r.jJihi, 'jJihi', '',false));
+    tr.appendChild(mkChk(id,r.gKaigo,'gKaigo','',false));
+    tr.appendChild(mkChk(id,r.gJihi, 'gJihi', '',false));
+    tr.appendChild(mkChk(id,r.cancel,'cancel','',true));
 
-    /* ---- 自社/外注 区分 ---- */
-    tr.appendChild(mkChk(id, r.jKaigo, 'jKaigo', '', false));
-    tr.appendChild(mkChk(id, r.jJihi,  'jJihi',  '', false));
-    tr.appendChild(mkChk(id, r.gKaigo, 'gKaigo', '', false));
-    tr.appendChild(mkChk(id, r.gJihi,  'gJihi',  '', false));
+    tr.appendChild(mkDate(id,r.expDate,'expDate',cX,true));
+    tr.appendChild(mkDate(id,r.subDate,'subDate',cS,true));
 
-    /* ---- キャンセル ---- */
-    tr.appendChild(mkChk(id, r.cancel, 'cancel', '', true));
-
-    /* ---- 工程管理 ---- */
-    tr.appendChild(mkDate(id, r.expDate, 'expDate', cX, true));
-    tr.appendChild(mkDate(id, r.subDate, 'subDate', cS, true));
-
-    var sdTd = mkChk(id, r.spDone, 'spDone', '', true);
-    if (!r.special) sdTd.className = 'chk hatch';
+    var sdTd=mkChk(id,r.spDone,'spDone','',true);
+    if(!r.special) sdTd.className='chk hatch';
     tr.appendChild(sdTd);
 
-    tr.appendChild(mkDate(id, r.prmDate, 'prmDate', cP, true));
-    tr.appendChild(mkDate(id, r.staDate, 'staDate', cA, true));
-    tr.appendChild(mkDate(id, r.finDate, 'finDate', cF, true));
-    tr.appendChild(mkDate(id, r.repDate, 'repDate', '',  false));
+    tr.appendChild(mkDate(id,r.prmDate,'prmDate',cP,true));
+    tr.appendChild(mkDate(id,r.staDate,'staDate',cA,true));
+    tr.appendChild(mkDate(id,r.finDate,'finDate',cF,true));
+    tr.appendChild(mkDate(id,r.repDate,'repDate','',false));
+    tr.appendChild(mkChk(id,r.collect, 'collect', cC,true));
 
-    /* ---- 完了処理 ---- */
-    tr.appendChild(mkChk(id, r.collect,  'collect',  cC, true));
-    tr.appendChild(mkChk(id, r.complete, 'complete', cZ, true));
+    /* 完了チェック：ONにすると完了タブへ移動、OFFにすると戻る */
+    tr.appendChild(mkChk(id,r.complete,'complete',cZ,true));
 
     tbody.appendChild(tr);
   }
-  document.getElementById('fcnt').textContent = '表示 '+data.length+'件 / 全 '+rows.length+'件';
+
+  var total = currentTab==='done'
+    ? rows.filter(function(r){return r.complete;}).length
+    : rows.filter(function(r){return !r.complete;}).length;
+  document.getElementById('fcnt').textContent =
+    '表示 '+filtered.length+'件 / '+
+    (currentTab==='done'?'完了済み':'進捗中')+' '+total+'件';
 }
 
 /* ====== フィルター ====== */
 function rebuildFilters() {
+  var base = currentTab==='done'
+    ? rows.filter(function(r){return r.complete;})
+    : rows.filter(function(r){return !r.complete;});
+
   var ks=[],ks2={};
-  rows.forEach(function(r){if(r.kyotaku&&!ks2[r.kyotaku]){ks2[r.kyotaku]=1;ks.push(r.kyotaku);}});ks.sort();
+  base.forEach(function(r){if(r.kyotaku&&!ks2[r.kyotaku]){ks2[r.kyotaku]=1;ks.push(r.kyotaku);}});ks.sort();
   var ns=[],ns2={};
-  rows.forEach(function(r){var ds=r.finDate||r.estDate;if(ds){var n=nendo(ds);if(n&&!ns2[n]){ns2[n]=1;ns.push(n);}}});ns.sort(function(a,b){return b-a;});
+  base.forEach(function(r){var ds=r.finDate||r.estDate;if(ds){var n=nendo(ds);if(n&&!ns2[n]){ns2[n]=1;ns.push(n);}}});ns.sort(function(a,b){return b-a;});
+
   var fky=document.getElementById('fKy'),ck=fky.value;
   fky.innerHTML='<option value="">すべて</option>'+ks.map(function(k){return '<option'+(k===ck?' selected':'')+'>'+esc(k)+'</option>';}).join('');
   var fnd=document.getElementById('fNd'),cn=fnd.value;
   fnd.innerHTML='<option value="">すべて</option>'+ns.map(function(n){return '<option value="'+n+'"'+(String(cn)===String(n)?' selected':'')+'>'+n+'年度</option>';}).join('');
 }
-function applyFilter() {
-  var st=document.getElementById('fSt').value, ky=document.getElementById('fKy').value;
-  var nd=document.getElementById('fNd').value, kw=document.getElementById('fKw').value.toLowerCase();
-  renderTable(rows.filter(function(r){
-    var s=getStatus(r).t, n=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
-    if(st&&s!==st)return false; if(ky&&r.kyotaku!==ky)return false;
-    if(nd&&String(n)!==nd)return false;
-    if(kw&&(r.name+r.kyotaku+r.cm).toLowerCase().indexOf(kw)===-1)return false;
-    return true;
-  }));
-}
+function applyFilter() { renderAll(); }
 
 /* ====== Drive バックアップ ====== */
 function backupDrive() {
-  var gasUrl = localStorage.getItem(GK)||'';
-  if (!gasUrl||gasUrl.indexOf('script.google.com')===-1) {
-    toast('⚠ まずGAS URLを上のバナーに入力・保存してください', true); return;
-  }
-  if (rows.length===0) { toast('⚠ データがありません', true); return; }
+  var gasUrl=localStorage.getItem(GK)||'';
+  if(!gasUrl||gasUrl.indexOf('script.google.com')===-1){toast('⚠ まずGAS URLを設定してください',true);return;}
+  if(rows.length===0){toast('⚠ データがありません',true);return;}
   var btn=document.getElementById('driveBtn');
   btn.textContent='⏳ 保存中…'; btn.disabled=true;
   try {
     var WB=XLSX.utils.book_new();
-    var H=['#','ステータス','利用者名','居宅名','ケアマネ','年度','見積日','特注品',
-      '合計金額','自社金額','外注金額','自社介保','自社自費','外注介保','外注自費',
-      'キャンセル','見積説明日','ケアマネ提出日','特注品完成','着工許可日',
-      '着工日','完成日','ケアマネ完了報告日','集金','完了'];
-    var d1=[H];
-    rows.forEach(function(r,i){
-      var g=calcExt(r),nd=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
-      d1.push([i+1,getStatus(r).t,r.name,r.kyotaku,r.cm,nd?nd+'年度':'',
-        r.estDate,r.special?'✓':'',parseFloat(r.total)||0,parseFloat(r.jisha)||0,g,
-        r.jKaigo?'✓':'',r.jJihi?'✓':'',r.gKaigo?'✓':'',r.gJihi?'✓':'',r.cancel?'✓':'',
-        r.expDate,r.subDate,r.spDone?'✓':'',r.prmDate,r.staDate,r.finDate,
-        r.repDate,r.collect?'✓':'',r.complete?'✓':'']);
-    });
-    var ws1=XLSX.utils.aoa_to_sheet(d1);
-    XLSX.utils.book_append_sheet(WB,ws1,'進捗一覧');
+    function makeSheet(data, sheetName) {
+      var H=['#','ステータス','利用者名','居宅名','ケアマネ','年度','見積日','特注品',
+        '合計金額','自社金額','外注金額','自社介保','自社自費','外注介保','外注自費',
+        'キャンセル','見積説明日','ケアマネ提出日','特注品完成','着工許可日',
+        '着工日','完成日','ケアマネ完了報告日','集金','完了'];
+      var d=[H];
+      data.forEach(function(r,i){
+        var g=calcExt(r),nd=r.finDate?nendo(r.finDate):(r.estDate?nendo(r.estDate):'');
+        d.push([i+1,getStatus(r).t,r.name,r.kyotaku,r.cm,nd?nd+'年度':'',
+          r.estDate,r.special?'✓':'',parseFloat(r.total)||0,parseFloat(r.jisha)||0,g,
+          r.jKaigo?'✓':'',r.jJihi?'✓':'',r.gKaigo?'✓':'',r.gJihi?'✓':'',r.cancel?'✓':'',
+          r.expDate,r.subDate,r.spDone?'✓':'',r.prmDate,r.staDate,r.finDate,
+          r.repDate,r.collect?'✓':'',r.complete?'✓':'']);
+      });
+      return XLSX.utils.aoa_to_sheet(d);
+    }
+    var progressRows=rows.filter(function(r){return !r.complete;});
+    var doneRows=rows.filter(function(r){return r.complete;});
+    XLSX.utils.book_append_sheet(WB,makeSheet(progressRows,'進捗中'));
+    XLSX.utils.book_append_sheet(WB,makeSheet(doneRows,'完了済み'));
     var b64=XLSX.write(WB,{bookType:'xlsx',type:'base64'});
     var now=new Date();
     var fname='住宅改修受注進捗_'+now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'_'+pad(now.getHours())+pad(now.getMinutes())+'.xlsx';
@@ -751,13 +802,10 @@ function backupDrive() {
     .then(function(res){return res.json();})
     .then(function(data){
       btn.textContent='☁️ Driveへ保存'; btn.disabled=false;
-      if(data.ok) toast('✅ Drive保存完了 — '+data.filename, false);
-      else toast('⚠ Drive保存失敗: '+(data.error||'不明'), true);
-    }).catch(function(err){
-      btn.textContent='☁️ Driveへ保存'; btn.disabled=false;
-      toast('⚠ 通信エラー: '+err.message, true);
-    });
-  } catch(e) { btn.textContent='☁️ Driveへ保存'; btn.disabled=false; toast('⚠ エラー: '+e.message, true); }
+      if(data.ok) toast('✅ Drive保存完了 — '+data.filename,false);
+      else toast('⚠ Drive保存失敗: '+(data.error||'不明'),true);
+    }).catch(function(err){btn.textContent='☁️ Driveへ保存';btn.disabled=false;toast('⚠ 通信エラー: '+err.message,true);});
+  } catch(e){btn.textContent='☁️ Driveへ保存';btn.disabled=false;toast('⚠ エラー: '+e.message,true);}
 }
 
 /* ====== CSV ====== */
@@ -778,20 +826,19 @@ function doCSV() {
     });
     var csv='\uFEFF'+H.map(function(v){return '"'+v+'"';}).join(',')+'\r\n'+lines.join('\r\n');
     var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-    var url=URL.createObjectURL(blob);
-    var a=document.createElement('a'); a.style.display='none'; a.href=url;
+    var url=URL.createObjectURL(blob); var a=document.createElement('a');
+    a.style.display='none'; a.href=url;
     a.download='住宅改修受注進捗_'+new Date().getFullYear()+pad(new Date().getMonth()+1)+pad(new Date().getDate())+'.csv';
     document.body.appendChild(a); a.click();
-    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);}, 500);
-    toast('✅ CSV出力完了 — '+rows.length+'件', false);
-  } catch(e) { toast('⚠ CSV失敗: '+e.message, true); }
+    setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},500);
+    toast('✅ CSV出力完了 — '+rows.length+'件',false);
+  } catch(e){toast('⚠ CSV失敗: '+e.message,true);}
 }
 
 /* ====== 集計モーダル ====== */
 function openModal()  { buildModal(); document.getElementById('mOv').classList.add('open'); }
 function closeModal() { document.getElementById('mOv').classList.remove('open'); }
 function ovClick(e)   { if(e.target===document.getElementById('mOv')) closeModal(); }
-
 function buildModal() {
   var body=document.getElementById('mBody');
   var act=rows.filter(function(r){return !r.cancel&&r.finDate;});
@@ -831,15 +878,15 @@ function buildModal() {
     {l:'外注施行単価（円）',fn:function(s){return gT(s);},m:true}
   ];
   var h='';
-  h+='<div class="ss"><div class="st">【全体サマリー】</div><div class="sum-cards">';
+  h+='<div class="ss"><div class="st2">【全体サマリー】（完了済み含む）</div><div class="sum-cards">';
   h+='<div class="sum-card sc-b"><div class="lbl">完成済み件数</div><div class="val">'+act.length+'件</div></div>';
   h+='<div class="sum-card sc-g"><div class="lbl">自社施行件数累計</div><div class="val">'+jr.length+'件</div></div>';
   h+='<div class="sum-card sc-g"><div class="lbl">自社施行単価（平均）</div><div class="val" style="font-size:17px">'+(jA?jA.toLocaleString('ja-JP')+'円':'─')+'</div></div>';
   h+='<div class="sum-card sc-p"><div class="lbl">外注施行件数累計</div><div class="val">'+gr.length+'件</div></div>';
   h+='<div class="sum-card sc-p"><div class="lbl">外注施行単価（平均）</div><div class="val" style="font-size:17px">'+(gA?gA.toLocaleString('ja-JP')+'円':'─')+'</div></div>';
   h+='</div></div>';
-  h+='<div class="ss"><div class="st">① 年度別サマリー</div>';
-  h+='<div class="sn">キャンセル除外・完成日基準 ／ 自社件数：自社金額＞0 ／ 外注件数：外注金額＞0</div>';
+  h+='<div class="ss"><div class="st2">① 年度別サマリー</div>';
+  h+='<div class="sn">キャンセル除外・完成日基準</div>';
   h+='<table class="stbl"><thead><tr><th rowspan="2" style="vertical-align:middle">項目</th>';
   NL.forEach(function(n,i){var cs=(i===0&&NL[1])?3:1;h+='<th class="'+(i===0?'hc':'hp')+'" colspan="'+cs+'"><span class="yb '+(i===0?'ybc':'ybp')+'">'+n+'年度</span></th>';});
   h+='</tr><tr>';
@@ -848,7 +895,7 @@ function buildModal() {
   SR.forEach(function(row){h+='<tr><td>'+row.l+'</td>';NL.forEach(function(n,i){var v=row.fn(NS[n]);h+='<td>'+(row.m?fmtY(v):(v||'─'))+'</td>';if(i===0&&NL[1])h+=dif(v,row.fn(NS[NL[1]]),row.m);});h+='</tr>';});
   h+='</tbody></table></div>';
   if(NL.length>=2){var cN=NL[0],pN=NL[1];
-    h+='<div class="ss"><div class="st">② 前年度・今年度 詳細比較</div>';
+    h+='<div class="ss"><div class="st2">② 前年度・今年度 詳細比較</div>';
     h+='<table class="stbl"><thead><tr><th rowspan="2" style="vertical-align:middle">項目</th>';
     h+='<th class="hp"><span class="yb ybp">前年度 '+pN+'年度</span></th>';
     h+='<th class="hc"><span class="yb ybc">今年度 '+cN+'年度</span></th>';
@@ -856,7 +903,7 @@ function buildModal() {
     SR.forEach(function(row){var p=row.fn(NS[pN]||{}),c=row.fn(NS[cN]||{});
       h+='<tr><td>'+row.l+'</td><td>'+(row.m?fmtY(p):(p||'─'))+'</td><td>'+(row.m?fmtY(c):(c||'─'))+'</td>'+dif(c,p,row.m)+'</tr>';});
     h+='</tbody></table></div>';}
-  h+='<div class="ss"><div class="st">③ 居宅別受注件数（年度別）</div>';
+  h+='<div class="ss"><div class="st2">③ 居宅別受注件数（年度別）</div>';
   h+='<table class="stbl"><thead><tr><th rowspan="2" style="vertical-align:middle">居宅名</th>';
   NL.forEach(function(n,i){var cs=(i===0&&NL[1])?5:4;h+='<th class="'+(i===0?'hc':'hp')+'" colspan="'+cs+'"><span class="yb '+(i===0?'ybc':'ybp')+'">'+n+'年度</span></th>';});
   if(NL.length>=2)h+='<th rowspan="2" style="vertical-align:middle">前年比</th>';
@@ -876,7 +923,7 @@ function buildModal() {
   h+='</tr></tbody></table></div>';
   if(KL.length&&NL.length){var cN2=NL[0],pN2=NL[1];
     var mx=1;KL.forEach(function(ky){var c=(KD[ky]&&KD[ky][cN2])?KD[ky][cN2].cnt:0,p=pN2&&KD[ky]&&KD[ky][pN2]?KD[ky][pN2].cnt:0;mx=Math.max(mx,c,p);});
-    h+='<div class="ss"><div class="st">④ 居宅別件数グラフ</div><div class="lr"><span class="lb" style="background:#2563eb"></span>'+cN2+'年度';
+    h+='<div class="ss"><div class="st2">④ 居宅別件数グラフ</div><div class="lr"><span class="lb" style="background:#2563eb"></span>'+cN2+'年度';
     if(pN2)h+='&nbsp;&nbsp;<span class="lb" style="background:#d1d5db;border:1px solid #9ca3af"></span>'+pN2+'年度';
     h+='</div><div class="chart-wrap">';
     KL.forEach(function(ky){var c=(KD[ky]&&KD[ky][cN2])?KD[ky][cN2].cnt:0,p=pN2&&KD[ky]&&KD[ky][pN2]?KD[ky][pN2].cnt:0;
@@ -885,14 +932,198 @@ function buildModal() {
       if(pN2)h+='<div class="cbar prev" style="height:'+h2+'px"></div>';
       h+='<div class="cbar cur" style="height:'+h1+'px"></div></div><div class="chart-val">'+c+'件</div><div class="chart-lbl">'+esc(ky)+'</div></div>';});
     h+='</div></div>';}
-  body.innerHTML = h;
+  body.innerHTML=h;
+}
+
+/* ====== CSV インポート（復旧）====== */
+function triggerImport() {
+  /* ファイル選択をリセットしてから開く */
+  var f = document.getElementById('csvFile');
+  f.value = '';
+  f.click();
+}
+
+function importCSV(input) {
+  if (!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var text = e.target.result;
+      /* BOM除去 */
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      var parsed = parseCSVText(text);
+      if (!parsed || parsed.length === 0) {
+        showImportError('CSVの読み込みに失敗しました。形式を確認してください。');
+        return;
+      }
+      showImportPreview(file.name, parsed);
+    } catch(err) {
+      showImportError('エラー: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+  /* インポートモーダルを開く */
+  document.getElementById('impOv').classList.add('open');
+}
+
+/* CSVテキストをパース（ダブルクォート対応）*/
+function parseCSVText(text) {
+  var lines = text.split(/\r\n|\r|\n/).filter(function(l){ return l.trim() !== ''; });
+  if (lines.length < 2) return [];
+
+  function parseLine(line) {
+    var cols = [], cur = '', inQ = false;
+    for (var i = 0; i < line.length; i++) {
+      var c = line[i];
+      if (c === '"') {
+        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (c === ',' && !inQ) {
+        cols.push(cur); cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    cols.push(cur);
+    return cols;
+  }
+
+  var headers = parseLine(lines[0]);
+  var data = [];
+  for (var i = 1; i < lines.length; i++) {
+    var cols = parseLine(lines[i]);
+    if (cols.length < 5) continue; /* 空行スキップ */
+    var obj = {};
+    headers.forEach(function(h, idx) { obj[h] = (cols[idx]||'').trim(); });
+    data.push(obj);
+  }
+  return data;
+}
+
+/* CSVデータをrowオブジェクトに変換 */
+function csvRowToRow(obj) {
+  function boolVal(v) { return v === '✓' || v === 'TRUE' || v === 'true' || v === '1'; }
+  function dateVal(v) { return (v && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : ''; }
+  function numVal(v)  { var n = parseFloat(String(v).replace(/,/g,'')); return isNaN(n) ? '' : String(n); }
+
+  return {
+    id: nextId++,
+    name:     obj['利用者名']     || '',
+    kyotaku:  obj['居宅名']       || '',
+    cm:       obj['ケアマネ']     || '',
+    estDate:  dateVal(obj['見積日']),
+    special:  boolVal(obj['特注品']),
+    total:    numVal(obj['合計金額']),
+    jisha:    numVal(obj['自社金額']),
+    jKaigo:   boolVal(obj['自社介保']),
+    jJihi:    boolVal(obj['自社自費']),
+    gKaigo:   boolVal(obj['外注介保']),
+    gJihi:    boolVal(obj['外注自費']),
+    cancel:   boolVal(obj['キャンセル']),
+    expDate:  dateVal(obj['見積説明日']),
+    subDate:  dateVal(obj['ケアマネ提出日']),
+    spDone:   boolVal(obj['特注品完成']),
+    prmDate:  dateVal(obj['着工許可日']),
+    staDate:  dateVal(obj['着工日']),
+    finDate:  dateVal(obj['完成日']),
+    repDate:  dateVal(obj['ケアマネ完了報告日']),
+    collect:  boolVal(obj['集金']),
+    complete: boolVal(obj['完了'])
+  };
+}
+
+var _importData = []; /* プレビュー用一時保存 */
+
+function showImportPreview(fname, data) {
+  _importData = data;
+  var el = document.getElementById('impContent');
+
+  /* プレビューテーブル（最初の5件） */
+  var preview = data.slice(0, 5);
+  var cols = ['利用者名','居宅名','ケアマネ','見積日','合計金額','自社金額','完了'];
+  var tbl = '<div style="overflow-x:auto"><table id="previewTable"><thead><tr>';
+  cols.forEach(function(c){ tbl += '<th>'+c+'</th>'; });
+  tbl += '</tr></thead><tbody>';
+  preview.forEach(function(row){
+    tbl += '<tr>';
+    cols.forEach(function(c){ tbl += '<td>'+(row[c]||'─')+'</td>'; });
+    tbl += '</tr>';
+  });
+  tbl += '</tbody></table></div>';
+  if (data.length > 5) tbl += '<p style="font-size:10px;color:#9ca3af;margin-top:4px">※ 先頭5件を表示（全 '+data.length+' 件）</p>';
+
+  el.innerHTML =
+    '<div class="imp-result">' +
+    '<b>📄 ' + fname + '</b><br>' +
+    '読み込み件数：<b style="font-size:15px">' + data.length + ' 件</b><br>' +
+    'プレビュー（先頭5件）：' +
+    '</div>' +
+    tbl +
+    '<div class="imp-warn" style="margin-top:14px">' +
+    '⚠「全データを置き換えて復旧」を選ぶと、現在のデータがすべて消えます。<br>' +
+    '事前にCSV出力でバックアップを取ることをお勧めします。' +
+    '</div>' +
+    '<div class="imp-btns">' +
+    '<button class="imp-btn imp-btn-cancel" onclick="closeImport()">キャンセル</button>' +
+    '<button class="imp-btn imp-btn-add"    onclick="doImport(false)">現在のデータに追加</button>' +
+    '<button class="imp-btn imp-btn-ok"     onclick="doImport(true)">全データを置き換えて復旧</button>' +
+    '</div>';
+}
+
+function showImportError(msg) {
+  document.getElementById('impContent').innerHTML =
+    '<div class="imp-warn">⚠ ' + msg + '</div>' +
+    '<div class="imp-btns"><button class="imp-btn imp-btn-cancel" onclick="closeImport()">閉じる</button></div>';
+}
+
+function doImport(replace) {
+  if (!_importData || _importData.length === 0) { closeImport(); return; }
+
+  var msg = replace
+    ? '全データを消去して ' + _importData.length + ' 件を復旧します。よろしいですか？'
+    : '現在のデータに ' + _importData.length + ' 件を追加します。よろしいですか？';
+  if (!confirm(msg)) return;
+
+  if (replace) {
+    rows = []; nextId = 1;
+  }
+
+  var added = 0;
+  _importData.forEach(function(obj) {
+    try {
+      var r = csvRowToRow(obj);
+      /* 利用者名または居宅名が空なら追加しない */
+      if (!r.name && !r.kyotaku) return;
+      rows.push(r);
+      added++;
+    } catch(e) {}
+  });
+
+  /* 保存して画面更新 */
+  try { localStorage.setItem(SK, JSON.stringify({rows:rows, nextId:nextId})); } catch(e) {}
+  closeImport();
+  renderAll();
+  toast('✅ 復旧完了 — ' + added + '件を' + (replace?'置き換えました':'追加しました'), false);
+}
+
+function closeImport() {
+  document.getElementById('impOv').classList.remove('open');
+  _importData = [];
+  document.getElementById('impContent').innerHTML =
+    '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:13px">CSVファイルを選択してください</div>';
+  document.getElementById('csvFile').value = '';
+}
+
+function impOverlayClick(e) {
+  if (e.target === document.getElementById('impOv')) closeImport();
 }
 
 /* ====== トースト ====== */
-function toast(msg, isErr) {
+function toast(msg,isErr){
   var el=document.getElementById('toast');
   el.textContent=msg; el.className=isErr?'show err':'show';
-  clearTimeout(el._t); el._t=setTimeout(function(){el.className='';}, 3500);
+  clearTimeout(el._t); el._t=setTimeout(function(){el.className='';},3500);
 }
 </script>
 </body>
